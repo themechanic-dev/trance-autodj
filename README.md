@@ -318,8 +318,14 @@ new application, and paste
 [`deploy/docker-compose.nas.yml`](deploy/docker-compose.nas.yml) as the
 YAML. That file is the whole deployment: it pulls the published image for
 the NAS's own chip — ARM or Intel — and has no build step, because there is
-no source tree on a NAS to build from. Then open port 8080 and choose a
+no source tree on a NAS to build from. Then open port **8088** and choose a
 password.
+
+It is 8088 rather than 8080 because QTS runs its own web interface on 8080,
+and a container asking for the same port fails to start with *address
+already in use* — after the image has downloaded, which is a long way to go
+to find out. The right-hand side of `"8088:8080"` is the port inside the
+container and stays as it is.
 
 Two things Container Station insists on, neither of which it says out loud:
 the application name must be **lowercase** (`tranceautodj`, not

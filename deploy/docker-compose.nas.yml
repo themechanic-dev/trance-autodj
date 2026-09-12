@@ -4,7 +4,7 @@
 #  no source checkout, no build. The image is published for amd64 and arm64,
 #  so the NAS pulls the one that fits its chip.
 #
-#  Afterwards open http://<nas-address>:8080 and choose a password.
+#  Afterwards open http://<nas-address>:8088 and choose a password.
 #
 #  The generator that builds video blocks is deliberately not here: on a
 #  small ARM chip a ten-minute block is an hour or two of CPU. Build blocks on
@@ -18,7 +18,10 @@ services:
     container_name: trance-autodj
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      # 8088 on the NAS, not 8080: QTS runs its own web interface on 8080 and
+      # the container fails to start with "address already in use". The
+      # right-hand side is the port inside the container and stays 8080.
+      - "8088:8080"
     volumes:
       - autodj-data:/data
     environment:

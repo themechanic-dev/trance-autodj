@@ -189,6 +189,9 @@ def test_the_nas_compose_needs_nothing_but_itself():
     assert "build" not in service, "a NAS has no source tree to build from"
     assert "generator" not in doc["services"], "block building does not belong on a NAS"
     assert service["restart"] == "unless-stopped"
+    # QTS itself listens on 8080; a container asking for it fails to start
+    # after the image has already downloaded.
+    assert not any(str(p).startswith("8080:") for p in service["ports"])
     assert "autodj-data" in doc["volumes"]
     # Container Station refuses a compose file that carries resource limits —
     # it wants them set in its own Advanced Settings — so they must not be here.
