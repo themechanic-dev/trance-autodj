@@ -306,7 +306,10 @@ def reverb(
             continue
         gain = 10 ** (-3.0 * delay / seconds)  # -60 dB by the end of the tail
         out[offset:] += signal[: signal.size - offset] * gain * rng.uniform(0.6, 1.0)
-    return sweep_lowpass(out, damping, sr=sr) / max(1.0, taps * 0.25)
+    damped = sweep_lowpass(out, damping, sr=sr)
+    del out
+    damped /= max(1.0, taps * 0.25)
+    return damped.astype(signal.dtype, copy=False)
 
 
 def delay_line(

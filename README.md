@@ -206,9 +206,10 @@ of YouTube's listeners all do.
 
 It is numpy on one core, no model and no GPU — about ten times faster than
 real time on a desktop, so a five-minute track takes half a minute; on a
-small ARM NAS it is closer to real time, so the same track takes five. That
-is deliberate: the container cannot see a graphics card, and a station meant
-to run on a NAS cannot depend on one.
+small ARM NAS it is closer to real time, so the same track takes five. It
+peaks at about 750 MB of memory for a five-minute track, in proportion to
+the length. That is deliberate: the container cannot see a graphics card,
+and a station meant to run on a NAS cannot depend on one.
 
 **Ask for as many as you like.** A hundred tracks is a day on a desktop and
 a week on a small NAS, and both are fine: the request returns at once and
@@ -310,15 +311,30 @@ from there, or you build more on a faster machine and copy them in the same
 way. The blocks are 1280×720 at 30 fps; the streamer copies them to YouTube
 without re-encoding, which is why the broadcast costs almost nothing.
 
-**On a NAS:** QNAP's Container Station and Synology's Container Manager both
-take this `docker-compose.yml` as it is. Leave the visual generator off (it
-is off by default — a `profiles: ["generator"]` service you opt into) and
-build the blocks on a desktop instead: a ten-minute block is an hour or two
-on a small ARM chip, and sixty of them is most of a week. Copy the finished
-`.ts` files and their `.json` sidecars into the volume under `blocks/`; they
-are adopted the next time the **Visuals** page loads. The composer
-is lighter — a five-minute track takes about five minutes there — so
-composing music on the NAS is fine, just slow.
+### On a NAS — QNAP Container Station, Synology Container Manager
+
+No terminal needed. Open Container Station (or Container Manager), create a
+new application, and paste
+[`deploy/docker-compose.nas.yml`](deploy/docker-compose.nas.yml) as the
+YAML. That file is the whole deployment: it pulls the published image for
+the NAS's own chip — ARM or Intel — and has no build step, because there is
+no source tree on a NAS to build from. Then open port 8080 and choose a
+password.
+
+Leave the visual generator off (it is not in that file, and it is off by
+default in the full one). Build blocks on a desktop instead — a ten-minute
+block is an hour or two on a small ARM chip, and sixty of them is most of a
+week — or take the starter pack below. Copy the finished `.ts` files and
+their `.json` sidecars into the volume under `blocks/`; they are adopted the
+next time the **Visuals** page loads.
+
+**Memory, honestly measured.** The broadcast itself runs in about 330 MB.
+Composing a five-minute track peaks at roughly 750 MB on top of that — it
+was 2.1 GB before the mixing buses were moved to single precision, which
+would not have fit at all. On a 2 GB NAS the file above caps the container
+at 1.5 GB, which is enough for the broadcast plus one track being composed;
+if it is tight, compose three-minute tracks, or compose on a desktop and
+copy the MP3s into `music/`. On a bigger box raise the limits.
 
 ### First run, in order
 

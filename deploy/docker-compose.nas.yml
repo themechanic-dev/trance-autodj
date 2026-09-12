@@ -1,0 +1,34 @@
+# =============================================================================
+#  Trance AutoDJ on a NAS — paste this into Container Station (QNAP) or
+#  Container Manager (Synology) as a new application. Nothing else needed:
+#  no source checkout, no build. The image is published for amd64 and arm64,
+#  so the NAS pulls the one that fits its chip.
+#
+#  Afterwards open http://<nas-address>:8080 and choose a password.
+#
+#  The generator that builds video blocks is deliberately not here: on a
+#  small ARM chip a ten-minute block is an hour or two of CPU. Build blocks on
+#  a desktop, or take the starter pack from the GitHub release, and copy the
+#  .ts and .json files into the volume under blocks/.
+# =============================================================================
+
+services:
+  autodj:
+    image: ghcr.io/themechanic-dev/trance-autodj:latest
+    container_name: trance-autodj
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - autodj-data:/data
+    environment:
+      # Your own zone: the broadcast title carries the time it started.
+      TZ: Europe/Athens
+    # The broadcast runs in about 330 MB. Composing a five-minute track peaks
+    # at roughly 750 MB on top, so 1.5 GB covers both on a 2 GB NAS — with
+    # three-minute tracks if it is tight. Raise these on a bigger box.
+    mem_limit: 1500m
+    cpus: 2.0
+
+volumes:
+  autodj-data:

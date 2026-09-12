@@ -175,3 +175,19 @@ def test_the_units_come_up_on_their_own_after_a_reboot():
         text = unit.read_text(encoding="utf-8")
         assert "WantedBy=multi-user.target" in text, unit.name
         assert "Restart=" in text, unit.name
+
+
+def test_the_nas_compose_needs_nothing_but_itself():
+    """Pasted into Container Station, this file is the whole deployment: no
+    build step, no source tree, an image the NAS can pull for its own chip."""
+    import yaml
+
+    text = (ROOT / "deploy" / "docker-compose.nas.yml").read_text(encoding="utf-8")
+    doc = yaml.safe_load(text)
+    service = doc["services"]["autodj"]
+    assert service["image"].startswith("ghcr.io/themechanic-dev/trance-autodj")
+    assert "build" not in service, "a NAS has no source tree to build from"
+    assert "generator" not in doc["services"], "block building does not belong on a NAS"
+    assert service["restart"] == "unless-stopped"
+    assert "autodj-data" in doc["volumes"]
+    assert "mem_limit" in service, "a small NAS needs a ceiling it can see"

@@ -212,7 +212,12 @@ class _Canvas:
 
     @classmethod
     def blank(cls, samples: int) -> _Canvas:
-        return cls(*(np.zeros(samples) for _ in range(7)))
+        # float32, not float64: these are whole-track buffers, seven of them,
+        # and a five-minute track in double precision peaked at 2.1 GB — more
+        # than a small NAS has. Single precision is what every mixing desk
+        # sums in, and the voices are still computed in double before they
+        # land here.
+        return cls(*(np.zeros(samples, dtype=np.float32) for _ in range(7)))
 
 
 @dataclass(frozen=True)
@@ -504,6 +509,23 @@ def _lay_lead(
         synth.place_stereo(canvas.high_l, canvas.high_r, (left * gain, right * gain), at)
 
 
+def _ping_pong(
+    left: np.ndarray, right: np.ndarray, *, time_s: float, feedback: float, repeats: int, mix: float
+) -> None:
+    """Each side's echo lands on the other, in place.
+
+    That widens the tail instead of thickening the middle. Both echoes are
+    taken before either side is touched, so no copy of the buses is needed —
+    the echoes themselves are the only new memory.
+    """
+    echo_l = synth.delay_line(right, time_s=time_s, feedback=feedback, repeats=repeats)
+    echo_r = synth.delay_line(left, time_s=time_s, feedback=feedback, repeats=repeats)
+    echo_l *= mix
+    echo_r *= mix
+    left += echo_l
+    right += echo_r
+
+
 def _mixdown(canvas: _Canvas, rng: np.random.Generator, *, beat: float) -> np.ndarray:
     """Glue, space and the pump — everything that happens after the notes.
 
@@ -512,35 +534,56 @@ def _mixdown(canvas: _Canvas, rng: np.random.Generator, *, beat: float) -> np.nd
     """
     duck = synth.sidechain(
         canvas.drums.size, np.array(canvas.kick_hits, dtype=np.int64), depth=0.62
-    )
+    ).astype(np.float32)
     canvas.low *= duck
     canvas.mid_l *= duck
     canvas.mid_r *= duck
-    lightly = duck * 0.85 + 0.15
-    canvas.high_l *= lightly
-    canvas.high_r *= lightly
+    duck *= 0.85
+    duck += 0.15
+    canvas.high_l *= duck
+    canvas.high_r *= duck
+    del duck
 
-    # Ping-ponged: each echo answers on the other side, which widens the tail
-    # instead of thickening the middle.
-    mid_l, mid_r = canvas.mid_l.copy(), canvas.mid_r.copy()
-    canvas.mid_l += synth.delay_line(mid_r, time_s=beat * 0.75, feedback=0.3, repeats=5) * 0.35
-    canvas.mid_r += synth.delay_line(mid_l, time_s=beat * 0.75, feedback=0.3, repeats=5) * 0.35
-    high_l, high_r = canvas.high_l.copy(), canvas.high_r.copy()
-    canvas.high_l += synth.delay_line(high_r, time_s=beat * 1.5, feedback=0.34, repeats=4) * 0.4
-    canvas.high_r += synth.delay_line(high_l, time_s=beat * 1.5, feedback=0.34, repeats=4) * 0.4
+    _ping_pong(canvas.mid_l, canvas.mid_r, time_s=beat * 0.75, feedback=0.3, repeats=5, mix=0.35)
+    _ping_pong(canvas.high_l, canvas.high_r, time_s=beat * 1.5, feedback=0.34, repeats=4, mix=0.4)
 
-    wet_l = synth.reverb(canvas.mid_l * 0.35 + canvas.high_l * 0.45, rng=rng, seconds=2.2)
-    wet_r = synth.reverb(canvas.mid_r * 0.35 + canvas.high_r * 0.45, rng=rng, seconds=2.2)
+    # Everything from here on is built in place on the two output buffers,
+    # which is what keeps the peak to a few whole-track arrays rather than a
+    # dozen.
+    wet_in = canvas.mid_l * 0.35
+    wet_in += canvas.high_l * 0.45
+    left = synth.reverb(wet_in, rng=rng, seconds=2.2).astype(np.float32)
+    left *= 0.5
+    wet_in = canvas.mid_r * 0.35
+    wet_in += canvas.high_r * 0.45
+    right = synth.reverb(wet_in, rng=rng, seconds=2.2).astype(np.float32)
+    right *= 0.5
+    del wet_in
 
-    centre = canvas.drums * 0.9 + canvas.low + canvas.effects
-    left = synth.soft_clip((centre + canvas.mid_l + canvas.high_l + wet_l * 0.5) * 0.62, 1.3)
-    right = synth.soft_clip((centre + canvas.mid_r + canvas.high_r + wet_r * 0.5) * 0.62, 1.3)
+    centre = canvas.drums * 0.9
+    centre += canvas.low
+    centre += canvas.effects
+    left += centre
+    left += canvas.mid_l
+    left += canvas.high_l
+    right += centre
+    right += canvas.mid_r
+    right += canvas.high_r
+    del centre
+
+    left *= 0.62
+    right *= 0.62
+    np.tanh(left * 1.3, out=left)
+    np.tanh(right * 1.3, out=right)
+    left /= np.tanh(1.3)
+    right /= np.tanh(1.3)
 
     # One gain for both sides: normalising each on its own would shift the
     # image whenever the two happened to peak differently.
     loudest = max(float(np.abs(left).max()), float(np.abs(right).max()), synth.SILENCE)
-    gain = 0.89 / loudest
-    return synth.stereo(left * gain, right * gain)
+    left *= 0.89 / loudest
+    right *= 0.89 / loudest
+    return synth.stereo(left, right)
 
 
 def render(spec: Plan) -> np.ndarray:
