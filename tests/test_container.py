@@ -190,4 +190,7 @@ def test_the_nas_compose_needs_nothing_but_itself():
     assert "generator" not in doc["services"], "block building does not belong on a NAS"
     assert service["restart"] == "unless-stopped"
     assert "autodj-data" in doc["volumes"]
-    assert "mem_limit" in service, "a small NAS needs a ceiling it can see"
+    # Container Station refuses a compose file that carries resource limits —
+    # it wants them set in its own Advanced Settings — so they must not be here.
+    for key in ("mem_limit", "cpus", "deploy", "cpu_shares", "mem_reservation"):
+        assert key not in service, f"{key} makes Container Station reject the file"

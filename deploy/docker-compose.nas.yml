@@ -24,11 +24,11 @@ services:
     environment:
       # Your own zone: the broadcast title carries the time it started.
       TZ: Europe/Athens
-    # The broadcast runs in about 330 MB. Composing a five-minute track peaks
-    # at roughly 750 MB on top, so 1.5 GB covers both on a 2 GB NAS — with
-    # three-minute tracks if it is tight. Raise these on a bigger box.
-    mem_limit: 1500m
-    cpus: 2.0
+    # No memory or CPU limits here on purpose: Container Station refuses a
+    # compose file that carries them ("configure resource limitations in
+    # Advanced Settings") — set them in that panel if you want them. For the
+    # record: the broadcast runs in about 330 MB, and composing a five-minute
+    # track peaks at roughly 750 MB on top of it.
 
 volumes:
   autodj-data:

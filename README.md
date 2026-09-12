@@ -331,10 +331,12 @@ next time the **Visuals** page loads.
 **Memory, honestly measured.** The broadcast itself runs in about 330 MB.
 Composing a five-minute track peaks at roughly 750 MB on top of that — it
 was 2.1 GB before the mixing buses were moved to single precision, which
-would not have fit at all. On a 2 GB NAS the file above caps the container
-at 1.5 GB, which is enough for the broadcast plus one track being composed;
-if it is tight, compose three-minute tracks, or compose on a desktop and
-copy the MP3s into `music/`. On a bigger box raise the limits.
+would not have fit at all. On a 2 GB NAS that is the broadcast plus one
+track being composed, with little to spare; if it is tight, compose
+three-minute tracks, or compose on a desktop and copy the MP3s into
+`music/`. Container Station will not accept memory or CPU limits inside the
+compose file — it wants them in its own *Advanced Settings* — so the NAS
+file carries none; set them there if you want a ceiling.
 
 ### First run, in order
 
