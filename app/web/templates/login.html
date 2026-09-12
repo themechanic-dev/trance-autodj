@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Sign in — Trance AutoDJ{% endblock %}
+{% block content %}
+  <div style="max-width:24rem;margin:4rem auto">
+    <section class="card">
+      <header>sign in</header>
+      <form method="post" action="/login" style="padding:1rem">
+        {% if error %}
+          <p style="color:var(--red);font-size:.85rem;margin:0 0 .8rem">{{ error }}</p>
+        {% endif %}
+        <label style="display:block;font-family:var(--mono);font-size:.7rem;
+                      text-transform:uppercase;letter-spacing:.12em;color:var(--text-faint)">
+          username</label>
+        <input name="username" value="admin" autocomplete="username" required
+               style="width:100%;margin:.3rem 0 .9rem;font-family:var(--mono);font-size:.85rem;
+                      padding:.5rem .65rem;border-radius:7px;border:1px solid var(--border-bright);
+                      background:var(--bg-raised);color:var(--text)">
+        <label style="display:block;font-family:var(--mono);font-size:.7rem;
+                      text-transform:uppercase;letter-spacing:.12em;color:var(--text-faint)">
+          password</label>
+        <input name="password" type="password" autocomplete="current-password" required autofocus
+               style="width:100%;margin:.3rem 0 1.1rem;font-family:var(--mono);font-size:.85rem;
+                      padding:.5rem .65rem;border-radius:7px;border:1px solid var(--border-bright);
+                      background:var(--bg-raised);color:var(--text)">
+        <button class="primary" type="submit" style="width:100%">Sign in</button>
+      </form>
+    </section>
+  </div>
+{% endblock %}

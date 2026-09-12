@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% set active_page = 'visuals' %}
+{% block title %}Visuals — Trance AutoDJ{% endblock %}
+
+{% block content %}
+  <div class="stats" id="stats"></div>
+
+  <div class="toolbar">
+    <label for="count" style="font-family:var(--mono);font-size:.76rem;color:var(--text-dim)">
+      build
+    </label>
+    <input type="number" id="count" value="1" min="1" max="20" style="width:4.5rem">
+    <button class="primary" id="build">Generate blocks now</button>
+    <span class="grow"></span>
+    <select id="filter">
+      <option value="">all blocks</option>
+      <option value="ready">ready</option>
+      <option value="rejected">rejected</option>
+      <option value="missing">missing</option>
+    </select>
+    <button class="mini" id="refresh">refresh</button>
+  </div>
+
+  <div id="jobs"></div>
+  <div class="blocks" id="blocks"></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Deliberately dependency-free: no CDN, so the control panel still works on a
+// server with no outbound internet access.
+const $ = (id) => document.getElementById(id);
+
+const fmtDuration = (s) => {
+  const m = Math.floor(s / 60), r = Math.round(s % 60);
+  return m ? `${m}m ${String(r).padStart(2, '0')}s` : `${r}s`;
+};
+
+async function api(path, options) {
+  const response = await fetch(path, options);
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+  return response.json();
+}
+
+function renderStats(p) {
+  const warn = p.below_minimum ? ' warn' : '';
+  $('stats').innerHTML = `
+    <div class="stat"><div class="label">blocks ready</div>
+      <div class="value${warn}">${p.ready}</div>
+      <div class="sub">min ${p.min_blocks} · max ${p.max_blocks}</div></div>
+    <div class="stat"><div class="label">video available</div>
+      <div class="value">${p.hours_available.toFixed(2)}h</div>
+      <div class="sub">${fmtDuration(p.duration_s)}</div></div>
+    <div class="stat"><div class="label">pool size</div>
+      <div class="value">${p.size_gb.toFixed(2)}G</div>
+      <div class="sub">cap ${p.max_disk_gb}G</div></div>
+    <div class="stat"><div class="label">disk free</div>
+      <div class="value">${p.disk_free_gb.toFixed(0)}G</div>
+      <div class="sub">${p.rejected} rejected · ${p.pinned} pinned</div></div>`;
+}
+
+function renderJobs(data) {
+  const running = data.jobs.filter((j) => j.status === 'running');
+  if (!running.length) { $('jobs').innerHTML = ''; return; }
+  $('jobs').innerHTML = running.map((j) => `
+    <div class="jobline">building — ${j.step || 'starting'} (${Math.round(j.progress * 100)}%)
+      <div class="bar"><i style="width:${Math.round(j.progress * 100)}%"></i></div>
+    </div>`).join('');
+}
+
+function blockCard(b) {
+  const bad = b.status !== 'ready';
+  const media = b.has_thumbnail
+    ? `<img src="/api/visuals/blocks/${b.id}/thumbnail" alt="" loading="lazy">`
+    : '';
+  return `
+    <article class="block ${bad ? 'rejected' : ''}" data-id="${b.id}">
+      <div class="media">
+        ${media}
+        <span class="badge ${bad ? 'bad' : ''}">${bad ? b.status : fmtDuration(b.duration_s)}</span>
+        ${bad ? '' : `<span class="play" title="play">▶</span>`}
+      </div>
+      <div class="meta">
+        <div class="tags">${b.generators.join(' · ') || '—'}</div>
+        <div class="line">${b.clips} clips · ${b.size_mb}MB · played ${b.play_count}×</div>
+        ${b.reject_reason ? `<div class="line" style="color:var(--red)">${b.reject_reason}</div>` : ''}
+        <div class="actions">
+          <button class="mini pin ${b.pinned ? 'on' : ''}">${b.pinned ? 'pinned' : 'pin'}</button>
+          <button class="mini danger del">delete</button>
+        </div>
+      </div>
+    </article>`;
+}
+
+// What the grid currently shows. Re-rendering identical HTML every five
+// seconds would make the page flicker and, worse, replace any <video> the
+// viewer had opened — the poll used to kill playback after five seconds.
+let renderedSignature = null;
+
+const signatureOf = (blocks) =>
+  blocks.map((b) => `${b.id}:${b.status}:${b.pinned}:${b.play_count}`).join('|');
+
+async function load({ force = false } = {}) {
+  try {
+    renderStats(await api('/api/visuals/pool'));
+    renderJobs(await api('/api/visuals/jobs?limit=5'));
+
+    const status = $('filter').value;
+    const data = await api('/api/visuals/blocks' + (status ? `?status=${status}` : ''));
+    const signature = signatureOf(data.blocks);
+
+    // Never rebuild the grid out from under someone watching a block.
+    const watching = $('blocks').querySelector('video') !== null;
+    if (!force && (signature === renderedSignature || watching)) return;
+
+    renderedSignature = signature;
+    $('blocks').innerHTML = data.blocks.length
+      ? data.blocks.map(blockCard).join('')
+      : `<div class="empty" style="grid-column:1/-1">
+           No blocks yet. Press <strong>Generate blocks now</strong>, or start the
+           generator with <code>docker compose run --rm autodj generator</code>.
+         </div>`;
+  } catch (err) {
+    renderedSignature = null;
+    $('blocks').innerHTML = `<div class="empty" style="grid-column:1/-1">${err.message}</div>`;
+  }
+}
+
+// Swap the thumbnail for a real player on click. The block is remuxed to
+// fragmented MP4 on the fly, because browsers cannot play MPEG-TS.
+$('blocks').addEventListener('click', async (event) => {
+  const card = event.target.closest('.block');
+  if (!card) return;
+  const id = card.dataset.id;
+
+  if (event.target.classList.contains('play')) {
+    card.querySelector('.media').innerHTML =
+      `<video src="/api/visuals/blocks/${id}/preview.mp4" controls autoplay muted playsinline></video>`;
+  } else if (event.target.classList.contains('pin')) {
+    const on = event.target.classList.contains('on');
+    await api(`/api/visuals/blocks/${id}/pin?pinned=${!on}`, { method: 'POST' });
+    load({ force: true });
+  } else if (event.target.classList.contains('del')) {
+    if (!confirm('Delete this block permanently?')) return;
+    await api(`/api/visuals/blocks/${id}`, { method: 'DELETE' });
+    load({ force: true });
+  }
+});
+
+$('build').addEventListener('click', async () => {
+  const button = $('build');
+  button.disabled = true;
+  button.textContent = 'queued…';
+  try {
+    await api(`/api/visuals/generate?count=${$('count').value}`, { method: 'POST' });
+  } finally {
+    setTimeout(() => {
+      button.disabled = false;
+      button.textContent = 'Generate blocks now';
+    }, 2000);
+  }
+});
+
+$('refresh').addEventListener('click', () => load({ force: true }));
+$('filter').addEventListener('change', () => load({ force: true }));
+load();
+setInterval(load, 5000);
+</script>
+{% endblock %}

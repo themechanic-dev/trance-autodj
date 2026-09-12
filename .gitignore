@@ -1,0 +1,27 @@
+# Runtime data — media, database, logs, secrets. Never committed.
+/data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.enc
+*.key
+
+# Local configuration, which holds machine-specific values.
+/config/config.yaml
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+*.swp

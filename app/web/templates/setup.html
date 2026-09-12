@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}First run — Trance AutoDJ{% endblock %}
+{% block content %}
+  <div style="max-width:26rem;margin:4rem auto">
+    <section class="card">
+      <header>choose a password</header>
+      <form method="post" action="/setup" style="padding:1rem">
+        <p style="font-size:.85rem;color:var(--text-dim);margin:0 0 1rem">
+          Anyone who can reach this page can broadcast to your channel and delete
+          your library, so pick a password before going any further.
+        </p>
+        {% if error %}
+          <p style="color:var(--red);font-size:.85rem;margin:0 0 .8rem">{{ error }}</p>
+        {% endif %}
+        <input name="password" type="password" placeholder="new password" required autofocus
+               autocomplete="new-password"
+               style="width:100%;margin-bottom:.6rem;font-family:var(--mono);font-size:.85rem;
+                      padding:.5rem .65rem;border-radius:7px;border:1px solid var(--border-bright);
+                      background:var(--bg-raised);color:var(--text)">
+        <input name="confirm" type="password" placeholder="repeat it" required
+               autocomplete="new-password"
+               style="width:100%;margin-bottom:1.1rem;font-family:var(--mono);font-size:.85rem;
+                      padding:.5rem .65rem;border-radius:7px;border:1px solid var(--border-bright);
+                      background:var(--bg-raised);color:var(--text)">
+        <button class="primary" type="submit" style="width:100%">Set password and continue</button>
+      </form>
+    </section>
+  </div>
+{% endblock %}

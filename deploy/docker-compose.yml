@@ -1,0 +1,148 @@
+# =============================================================================
+#  Trance AutoDJ — Docker deployment
+#
+#      cd deploy && docker compose up -d
+#      open http://localhost:8080
+#
+#  That pulls a ready-made image from GitHub for your machine's architecture
+#  (amd64 and arm64 are both published, so a QNAP or a Synology is the same
+#  command as a PC). To build from source instead — after editing the code,
+#  or if you would rather not trust a registry:
+#
+#      docker compose up -d --build
+#
+#  One service on purpose. The application supervises Liquidsoap, Icecast and
+#  ffmpeg as its own child processes, which is what lets the dashboard start
+#  and stop the stream. Splitting them into separate containers would mean
+#  handing the web UI the Docker socket to control its neighbours — more
+#  moving parts and a much larger blast radius for no benefit here.
+# =============================================================================
+
+# One image, built once, used by both services.
+x-build: &build
+  context: ..
+  dockerfile: deploy/Dockerfile
+  args:
+    # Set to 1 to bake in CUDA PyTorch for GPU image generation.
+    # Adds several GB to the image; leave at 0 for CPU-only hosts.
+    WITH_CUDA: "0"
+
+services:
+  autodj:
+    image: ghcr.io/themechanic-dev/trance-autodj:latest
+    build: *build
+    container_name: trance-autodj
+    restart: unless-stopped
+
+    ports:
+      - "8080:8080"
+      # Uncomment to listen to the Icecast audio feed from outside the
+      # container. Not needed for streaming to YouTube.
+      # - "8000:8000"
+
+    volumes:
+      # Everything mutable: music, playlists, blocks, database, logs, secrets.
+      - autodj-data:/data
+      # Your own settings. Copy config/config.example.yaml first.
+      # - ../config/config.yaml:/app/config/config.yaml:ro
+
+    environment:
+      TZ: Europe/Athens
+      # The stream key can be supplied here instead of through the dashboard.
+      # Prefer a .env file or Docker secrets over writing it in this file.
+      # TAD_STREAM__YOUTUBE__STREAM_KEY: ${YOUTUBE_STREAM_KEY:-}
+      #
+      # Keeps the encrypted secret store readable across container rebuilds.
+      # Generate one with: docker run --rm trance-autodj:latest \
+      #     python -m app.core.security generate-key
+      # TAD_MASTER_KEY: ${TAD_MASTER_KEY:-}
+
+    # A ceiling, not a requirement: the broadcast itself runs in about 330 MB
+    # and a quarter of a core. The generous numbers are for the block builder
+    # and the composer when they run here too. On a small NAS lower them to
+    # what the box has; on a 2 GB NAS the broadcast alone fits comfortably.
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 6G
+
+    # A generator writing a 10-minute block should not be killed by the OOM
+    # reaper before the streamer, which must survive.
+    oom_score_adj: -100
+
+    healthcheck:
+      test: ["CMD", "/app/scripts/healthcheck.sh"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+    # ---- GPU (NVIDIA only) --------------------------------------------------
+    # Requires the native Docker engine plus nvidia-container-toolkit on the
+    # host. Docker Desktop on Linux runs containers inside its own VM and
+    # cannot see the GPU; on Windows it can, through WSL2.
+    #
+    # gpus: all
+
+  # ---------------------------------------------------------------------------
+  #  The visual generator, off by default:
+  #
+  #      docker compose --profile generator up -d
+  #
+  #  It is a service rather than the `docker compose run` it used to be,
+  #  because a detached one-off run is not managed by the project: `docker
+  #  compose down` leaves it running, and it holds the data volume open so
+  #  `down -v` silently keeps the volume too. As a service it starts, stops
+  #  and is removed with everything else.
+  #
+  #  Leaving it out entirely is fine. The Visuals page builds blocks on demand
+  #  in the web container; this is for filling the pool and keeping it full.
+  # ---------------------------------------------------------------------------
+  generator:
+    image: ghcr.io/themechanic-dev/trance-autodj:latest
+    build: *build
+    container_name: trance-autodj-generator
+    profiles: ["generator"]
+    restart: unless-stopped
+    command: ["generator"]
+
+    volumes:
+      - autodj-data:/data
+      # - ../config/config.yaml:/app/config/config.yaml:ro
+
+    environment:
+      TZ: Europe/Athens
+
+    depends_on:
+      autodj:
+        condition: service_healthy
+
+    # This is the CPU-hungry half by design. It also runs at nice 19 and
+    # throttles itself; the limit is what keeps the host usable regardless.
+    deploy:
+      resources:
+        limits:
+          cpus: "4.0"
+          memory: 6G
+
+    # The opposite of the web container's setting, on purpose. If the kernel
+    # has to kill something, it should be this: a dead generator costs one
+    # block, a dead broadcast costs the broadcast.
+    oom_score_adj: 500
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  autodj-data:
+    driver: local

@@ -1,0 +1,31 @@
+[Unit]
+Description=Trance AutoDJ — web dashboard
+Documentation=https://github.com/yourname/trance-autodj
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=autodj
+Group=autodj
+WorkingDirectory=/opt/trance-autodj
+Environment=TAD_APP__DATA_DIR=/var/lib/trance-autodj
+EnvironmentFile=-/etc/trance-autodj/env
+ExecStartPre=/opt/trance-autodj/.venv/bin/python scripts/preflight.py
+ExecStart=/opt/trance-autodj/.venv/bin/python -m app.main
+Restart=always
+RestartSec=5
+
+# Hardening. The web process needs its data directory and nothing else.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+ReadWritePaths=/var/lib/trance-autodj
+
+[Install]
+WantedBy=multi-user.target

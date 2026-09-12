@@ -1,0 +1,36 @@
+[Unit]
+Description=Trance AutoDJ — visual generator (offline, low priority)
+After=trance-autodj-web.service
+PartOf=trance-autodj-web.service
+
+[Service]
+Type=exec
+User=autodj
+Group=autodj
+WorkingDirectory=/opt/trance-autodj
+Environment=TAD_APP__DATA_DIR=/var/lib/trance-autodj
+Environment=TAD_SERVICE=generator
+EnvironmentFile=-/etc/trance-autodj/env
+ExecStart=/opt/trance-autodj/.venv/bin/python -m app.services.visual.worker
+Restart=always
+RestartSec=15
+
+# This is the whole CPU policy, enforced by the kernel rather than by hope.
+# Generation may take hours; it must never compete with the live stream.
+Nice=19
+CPUSchedulingPolicy=batch
+CPUWeight=20
+CPUQuota=150%
+IOSchedulingClass=idle
+IOWeight=10
+MemoryHigh=4G
+MemoryMax=6G
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/trance-autodj
+
+[Install]
+WantedBy=multi-user.target

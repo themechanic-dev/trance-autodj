@@ -1,0 +1,451 @@
+{% extends "base.html" %}
+{% set active_page = 'stream' %}
+{% block title %}Stream — Trance AutoDJ{% endblock %}
+
+{% block content %}
+  <div class="verdict" id="verdict">
+    <span class="dot"></span>
+    <div><div class="headline">checking…</div><div class="sub"></div></div>
+  </div>
+
+  <div class="toolbar">
+    <button class="primary" id="golive">GO LIVE</button>
+    <button class="mini danger" id="stopbtn">STOP</button>
+    <span class="grow"></span>
+    <span id="keystate" style="font-family:var(--mono);font-size:.76rem;color:var(--text-dim)"></span>
+  </div>
+
+  <div style="display:flex;align-items:baseline;gap:.5rem">
+    <span id="statslabel" style="font-family:var(--mono);font-size:.68rem;
+          color:var(--text-faint);letter-spacing:.06em"></span>
+  </div>
+  <div class="stats" id="stats"></div>
+
+  <section class="card" style="margin-top:.2rem">
+    <header>monitor <span id="monhint" style="color:var(--dim)"></span></header>
+    <div style="padding:.75rem .85rem">
+      <p style="margin:0 0 .6rem;font-size:.82rem;color:var(--text-dim)">
+        Exactly what would be sent to YouTube — the same blocks, the same audio,
+        the same encoder settings — played here instead. It uses the same pipe as
+        the broadcast, so it cannot run while you are live.
+      </p>
+      <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.6rem">
+        <button class="mini" id="monstart">Start monitor</button>
+        <button class="mini danger" id="monstop">Stop</button>
+        <span id="monstate" style="font-family:var(--mono);font-size:.76rem;
+              color:var(--text-dim)"></span>
+      </div>
+      <div id="monwrap" style="display:none">
+        <video id="mon" controls playsinline
+               style="width:100%;max-height:26rem;background:#000;border-radius:8px;
+                      border:1px solid var(--border-bright)"></video>
+        <p style="margin:.5rem 0 0;font-size:.74rem;color:var(--dim)">
+          Sound is on: pressing the button is what lets the browser play it. If your
+          browser refuses anyway, the picture runs muted and the status says so.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <div class="grid">
+    <section class="card">
+      <header>stream key</header>
+      <div style="padding:.75rem .85rem">
+        <p style="margin:0 0 .6rem;font-size:.82rem;color:var(--text-dim)">
+          YouTube Studio → Create → Go live → Streaming software → Stream key.
+          Stored encrypted; it is never shown again and never written to a log.
+        </p>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+          <input type="password" id="key" placeholder="xxxx-xxxx-xxxx-xxxx-xxxx" autocomplete="off"
+                 style="flex:1 1 12rem;min-width:0;font-family:var(--mono);font-size:.8rem;
+                        padding:.45rem .6rem;
+                        border-radius:7px;border:1px solid var(--border-bright);
+                        background:var(--bg-raised);color:var(--text)">
+          <button class="mini" id="savekey">save</button>
+          <button class="mini danger" id="clearkey">clear</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <header>youtube title <span id="ytstate" style="color:var(--dim)"></span></header>
+      <div style="padding:.75rem .85rem">
+        <p style="margin:0 0 .6rem;font-size:.82rem;color:var(--text-dim)">
+          RTMP carries no title — it is only video and audio. To name the broadcast
+          we ask YouTube directly, which needs your own Google credentials once.
+        </p>
+
+        <label style="display:block;font-size:.74rem;color:var(--text-faint);
+               font-family:var(--mono);margin-bottom:.2rem">TITLE</label>
+        <input id="yttitle" placeholder="Trance AutoDJ 24/7 — {datetime}" maxlength="100"
+               style="width:100%;font-family:var(--mono);font-size:.78rem;padding:.4rem .55rem;
+                      border-radius:7px;border:1px solid var(--border-bright);
+                      background:var(--bg-raised);color:var(--text)">
+        <div style="font-size:.72rem;color:var(--text-faint);margin:.3rem 0 .5rem">
+          <code>{date}</code> <code>{time}</code> <code>{datetime}</code> are replaced when
+          the broadcast starts · <span id="ytpreview" style="color:var(--cyan)"></span>
+        </div>
+        <button class="mini" id="yttitlesave">save title</button>
+        <div id="ytwarn" style="display:none;margin-top:.5rem;padding:.45rem .6rem;
+             border-radius:7px;font-size:.76rem;color:var(--warn);
+             background:rgba(255,179,71,.08);border:1px solid rgba(255,179,71,.35)">
+          This title is saved but it is <strong>not reaching YouTube</strong>: naming a
+          broadcast goes through the Data API, which needs the Google account below.
+          The stream itself is unaffected.
+        </div>
+
+        <div id="ytconnect" style="margin-top:.8rem;border-top:1px solid var(--border);
+             padding-top:.7rem">
+          <div id="ytclientwrap">
+            <label style="display:block;font-size:.74rem;color:var(--text-faint);
+                   font-family:var(--mono);margin-bottom:.2rem">GOOGLE CLIENT</label>
+            <!-- Stacked, not a row: two inputs and a button side by side need about
+                 400px and the card is 330, so the button was pushed outside the card
+                 and clipped. The credentials could be typed and never saved. -->
+            <div style="display:flex;flex-direction:column;gap:.4rem;margin-bottom:.4rem">
+              <input id="ytid" placeholder="client ID" autocomplete="off"
+                     style="width:100%;min-width:0;font-family:var(--mono);font-size:.74rem;
+                            padding:.35rem .5rem;border-radius:7px;
+                            border:1px solid var(--border-bright);
+                            background:var(--bg-raised);color:var(--text)">
+              <input id="ytsecret" type="password" placeholder="client secret" autocomplete="off"
+                     style="width:100%;min-width:0;font-family:var(--mono);font-size:.74rem;
+                            padding:.35rem .5rem;border-radius:7px;
+                            border:1px solid var(--border-bright);
+                            background:var(--bg-raised);color:var(--text)">
+              <button class="mini" id="ytsaveclient" style="align-self:flex-start">save</button>
+            </div>
+          </div>
+          <button class="mini primary" id="ytlink">connect account</button>
+          <button class="mini danger" id="ytunlink">disconnect</button>
+          <div id="ytcode" style="display:none;margin-top:.6rem;padding:.6rem;border-radius:8px;
+               background:var(--bg-raised);border:1px solid var(--border-bright)">
+            <div style="font-size:.8rem">Open <a id="yturl" target="_blank"
+              style="color:var(--cyan)"></a> and enter</div>
+            <div id="ytusercode" style="font-family:var(--mono);font-size:1.3rem;
+                 letter-spacing:.12em;color:var(--cyan);margin:.35rem 0"></div>
+            <div id="ytwait" style="font-size:.74rem;color:var(--text-faint)">waiting for you…</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <header>feeder</header>
+      <dl class="kv" id="feeder"></dl>
+    </section>
+
+    <section class="card">
+      <header>ffmpeg command</header>
+      <div style="padding:.6rem .85rem"><code id="cmd" style="font-size:.7rem;color:var(--text-dim);
+        word-break:break-all;line-height:1.5"></code></div>
+    </section>
+  </div>
+
+  <section class="card" style="margin-top:1.1rem">
+    <header>ffmpeg output</header>
+    <pre id="logs" style="margin:0;padding:.7rem .85rem;font-size:.74rem;max-height:18rem;
+      overflow:auto;color:var(--text-dim);white-space:pre-wrap"></pre>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const hhmm = (s) => {
+  s = Math.round(s || 0);
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+  return h ? `${h}h ${m}m` : `${m}m ${s % 60}s`;
+};
+
+async function api(path, options) {
+  const r = await fetch(path, options);
+  const body = await r.text();
+  if (!r.ok) throw new Error(body.slice(0, 300));
+  return body ? JSON.parse(body) : {};
+}
+
+function render(s) {
+  const v = $('verdict');
+  v.className = 'verdict ' + (s.live ? 'pass' : 'fail');
+  v.querySelector('.headline').textContent = s.live ? 'ON AIR' : 'Off air';
+  v.querySelector('.sub').textContent = s.live
+    ? `up ${hhmm(s.uptime_s)} · ${s.restarts} restart(s) · ${s.video_mode} · ${s.encoder}`
+    : (s.has_stream_key ? 'ready — press GO LIVE' : 'no stream key configured');
+
+  const h = s.health;
+  const dropped = h.dropped_frames > 0;
+  // Off air these are the previous broadcast's figures, not this moment's.
+  // Left unlabelled they read as live — a stopped station showing 30 fps and a
+  // healthy bitrate is the most misleading thing this page could say.
+  $('stats').style.opacity = s.live ? '1' : '.55';
+  $('statslabel').textContent = s.live ? '' : 'last run';
+  $('stats').innerHTML = `
+    <div class="stat"><div class="label">speed</div>
+      <div class="value${(s.live && h.speed && Math.abs(h.speed - 1) > 0.05) ? ' warn' : ''}">${h.speed || 0}×</div>
+      <div class="sub">1.0 = real time</div></div>
+    <div class="stat"><div class="label">fps</div>
+      <div class="value">${h.fps || 0}</div><div class="sub">${h.frames} frames</div></div>
+    <div class="stat"><div class="label">bitrate</div>
+      <div class="value">${Math.round(h.bitrate_kbits || 0)}k</div>
+      <div class="sub">sent ${hhmm(h.out_time_s)}</div></div>
+    <div class="stat"><div class="label">dropped</div>
+      <div class="value${dropped ? ' warn' : ''}">${h.dropped_frames}</div>
+      <div class="sub">${h.duplicated_frames} duplicated</div></div>`;
+
+  const f = s.feeder;
+  $('feeder').innerHTML = `
+    <dt>blocks played</dt><dd>${f.blocks_played}</dd>
+    <dt>current</dt><dd>${esc(f.running && f.current_block ? f.current_block.slice(0, 12) : '—')}
+      ${f.current_block_elapsed_s ? `(${Math.round(f.current_block_elapsed_s)}s)` : ''}</dd>
+    <dt>written</dt><dd>${f.megabytes_written} MB</dd>
+    <dt>status</dt><dd>${!f.running
+      ? '<span style="color:var(--text-faint)">stopped</span>'
+      : f.waiting_for_blocks
+        ? '<span style="color:var(--warn)">waiting — the pool is empty</span>'
+        : 'feeding'}</dd>
+    ${f.last_error ? `<dt>error</dt><dd style="color:var(--red)">${esc(f.last_error)}</dd>` : ''}`;
+}
+
+async function refresh() {
+  try {
+    const s = await api('/api/stream/status');
+    render(s);
+    const k = await api('/api/stream/key');
+    $('keystate').textContent = k.configured
+      ? `key ${k.masked}${k.from_environment ? ' (pinned by environment)' : ''}`
+      : 'no key set';
+    $('key').disabled = k.from_environment;
+    $('savekey').disabled = k.from_environment;
+    const l = await api('/api/stream/logs?count=120');
+    $('logs').textContent = l.lines.join('\n') || '(nothing yet)';
+  } catch (err) {
+    $('verdict').querySelector('.headline').textContent = err.message;
+  }
+}
+
+api('/api/stream/command').then((c) => { $('cmd').textContent = c.command.join(' '); });
+
+$('golive').addEventListener('click', async () => {
+  if (!confirm('Start broadcasting to YouTube?')) return;
+  // The monitor holds the same pipe the broadcast needs.
+  if (monitoring) stopMonitor();
+  try { await api('/api/stream/start', { method: 'POST' }); }
+  catch (e) { alert(e.message); }
+  refresh();
+});
+$('stopbtn').addEventListener('click', async () => {
+  if (!confirm('Stop the broadcast?')) return;
+  await api('/api/stream/stop', { method: 'POST' });
+  refresh();
+});
+// ---------------------------------------------------------------------------
+//  Monitor
+//
+//  The video element holds the request open; ffmpeg and the feeder live for
+//  exactly as long as it does. Clearing src is therefore genuinely "stop", not
+//  merely "hide" — nothing keeps running in a forgotten tab.
+// ---------------------------------------------------------------------------
+let monitoring = false;
+let heartbeat = null;
+
+async function monitorState() {
+  if (monitoring) return;
+  try {
+    const s = await api('/api/stream/monitor/status');
+    $('monstart').disabled = !s.ready;
+    $('monstate').textContent = s.ready ? 'ready' : s.reason;
+  } catch (e) {
+    $('monstate').textContent = '';
+  }
+}
+
+function stopMonitor() {
+  const video = $('mon');
+  video.pause();
+  video.removeAttribute('src');
+  video.load();            // drops the connection from this side
+  // ...and tell the server, because a dropped connection is not always
+  // noticed: the kernel buffers writes nobody reads.
+  fetch('/api/stream/monitor/stop', { method: 'POST' }).catch(() => {});
+  $('monwrap').style.display = 'none';
+  $('monstop').disabled = true;
+  $('monstart').disabled = false;
+  monitoring = false;
+  if (heartbeat) { clearInterval(heartbeat); heartbeat = null; }
+  $('monstate').textContent = 'stopped';
+  monitorState();
+}
+
+$('monstart').addEventListener('click', () => {
+  const video = $('mon');
+  monitoring = true;
+  $('monstart').disabled = true;
+  $('monstop').disabled = false;
+  $('monwrap').style.display = '';
+  $('monstate').textContent = 'starting…';
+  // With sound, on purpose. Pressing this button is a user gesture, so the
+  // browser allows audio; starting muted was worse than useless — you could
+  // not hear the thing you came to check, and a muted video counts as
+  // "video-only background media", which Chrome pauses to save power the
+  // moment the tab stops being the visible one.
+  video.muted = false;
+  video.volume = 1;
+  video.src = `/api/stream/monitor/live.mp4?t=${Date.now()}`;
+  // Closing a tab does not reliably reach the server, so say we are here.
+  // Stop saying it and the monitor shuts itself down a few seconds later.
+  heartbeat = setInterval(() => {
+    fetch('/api/stream/monitor/keepalive', { method: 'POST' }).catch(() => {});
+  }, 5000);
+  video.play().then(() => { $('monstate').textContent = 'running'; })
+    .catch(async () => {
+      // Some browsers refuse sound anyway. Better a silent picture than
+      // nothing, as long as we say which one you got.
+      video.muted = true;
+      try {
+        await video.play();
+        $('monstate').textContent = 'running (muted — use the player to unmute)';
+      } catch (err) {
+        $('monstate').textContent = `could not play: ${err.message}`;
+      }
+    });
+  video.addEventListener('error', () => {
+    $('monstate').textContent = 'the monitor stopped';
+  }, { once: true });
+});
+
+$('monstop').addEventListener('click', stopMonitor);
+// Going live needs the pipe the monitor is holding.
+window.addEventListener('beforeunload', () => { if (monitoring) stopMonitor(); });
+
+// ---------------------------------------------------------------------------
+//  Naming the broadcast
+//
+//  The client pair and the refresh token never appear here again once saved —
+//  the same rule as the stream key. All this page ever learns is whether an
+//  account is connected.
+// ---------------------------------------------------------------------------
+let ytPolling = null;
+
+async function loadYoutube() {
+  let y;
+  try { y = await api('/api/stream/youtube'); } catch (e) { return; }
+  if (document.activeElement !== $('yttitle')) $('yttitle').value = y.title_template || '';
+  $('ytpreview').textContent = y.preview ? `now: ${y.preview}` : '';
+  $('ytstate').textContent = y.connected ? 'connected'
+    : (y.has_client ? 'credentials saved — not connected' : 'not connected');
+  // A title with nobody to tell it to is the trap this card exists to avoid:
+  // the save used to promise it would be applied to the next broadcast, and
+  // then the broadcast went out under whatever name YouTube chose.
+  $('ytstate').style.color = y.connected ? 'var(--ok)'
+    : (y.title_template ? 'var(--warn)' : 'var(--dim)');
+  $('ytwarn').style.display = (y.title_template && !y.connected) ? '' : 'none';
+  $('ytclientwrap').style.display = y.has_client ? 'none' : '';
+  $('ytlink').style.display = y.connected ? 'none' : '';
+  $('ytunlink').style.display = (y.has_client || y.connected) ? '' : 'none';
+}
+
+$('yttitle').addEventListener('input', () => {
+  // Show the stamp as it is typed, without waiting for a save.
+  const now = new Date();
+  const two = (n) => String(n).padStart(2, '0');
+  const date = `${two(now.getDate())}/${two(now.getMonth() + 1)}/${now.getFullYear()}`;
+  const time = `${two(now.getHours())}:${two(now.getMinutes())}`;
+  const filled = $('yttitle').value
+    .replace('{datetime}', `${date} ${time}`).replace('{date}', date).replace('{time}', time);
+  $('ytpreview').textContent = filled ? `now: ${filled}` : '';
+});
+
+$('yttitlesave').addEventListener('click', async () => {
+  try {
+    await api('/api/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 'stream.youtube.title_template': $('yttitle').value }),
+    });
+    await loadYoutube();
+    const y = await api('/api/stream/youtube');
+    alert(!$('yttitle').value.trim()
+      ? 'Saved. Broadcasts will keep whatever name YouTube gives them.'
+      : y.connected
+        ? 'Saved. It is applied to the next broadcast you start.'
+        : 'Saved — but it will not reach YouTube yet.\n\n'
+          + 'RTMP carries no title. Connect a Google account below and the '
+          + 'next broadcast you start will be named.');
+  } catch (e) { alert(e.message); }
+});
+
+$('ytsaveclient').addEventListener('click', async () => {
+  try {
+    await api('/api/stream/youtube/client', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: $('ytid').value.trim(),
+                             client_secret: $('ytsecret').value.trim() }),
+    });
+    $('ytid').value = ''; $('ytsecret').value = '';
+    await loadYoutube();
+  } catch (e) { alert(e.message); }
+});
+
+$('ytlink').addEventListener('click', async () => {
+  try {
+    const c = await api('/api/stream/youtube/connect', { method: 'POST' });
+    $('yturl').textContent = c.verification_url;
+    $('yturl').href = c.verification_url;
+    $('ytusercode').textContent = c.user_code;
+    $('ytcode').style.display = '';
+    $('ytwait').textContent = 'waiting for you…';
+    if (ytPolling) clearInterval(ytPolling);
+    ytPolling = setInterval(async () => {
+      try {
+        const r = await api('/api/stream/youtube/poll', { method: 'POST' });
+        if (r.connected) {
+          clearInterval(ytPolling); ytPolling = null;
+          $('ytcode').style.display = 'none';
+          await loadYoutube();
+        }
+      } catch (e) {
+        clearInterval(ytPolling); ytPolling = null;
+        $('ytwait').textContent = e.message;
+      }
+    }, 5000);
+  } catch (e) { alert(e.message); }
+});
+
+$('ytunlink').addEventListener('click', async () => {
+  if (!confirm('Forget the Google credentials?\n\nThe broadcast is not affected.')) return;
+  if (ytPolling) { clearInterval(ytPolling); ytPolling = null; }
+  $('ytcode').style.display = 'none';
+  await api('/api/stream/youtube', { method: 'DELETE' });
+  await loadYoutube();
+});
+
+$('savekey').addEventListener('click'  , async () => {
+  const key = $('key').value.trim();
+  if (key.length < 8) { alert('That does not look like a stream key.'); return; }
+  try {
+    await api('/api/stream/key', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key }),
+    });
+    $('key').value = '';
+  } catch (e) { alert(e.message); }
+  refresh();
+});
+$('clearkey').addEventListener('click', async () => {
+  if (!confirm('Remove the stored stream key?')) return;
+  await api('/api/stream/key', { method: 'DELETE' });
+  refresh();
+});
+
+refresh();
+monitorState();
+loadYoutube();
+setInterval(refresh, 3000);
+setInterval(monitorState, 5000);
+</script>
+{% endblock %}

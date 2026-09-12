@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% set marks = {"ok": "✔", "warn": "▲", "fail": "✖"} %}
+
+{% block masthead_extra %}
+  <span class="version">{{ config.video.resolution }} @ {{ config.video.fps }}fps</span>
+{% endblock %}
+
+{% block content %}
+  <div class="verdict {{ 'pass' if report.ok else 'fail' }}">
+    <span class="dot"></span>
+    <div>
+      <div class="headline">
+        {% if report.ok %}
+          System check passed
+        {% else %}
+          {{ report.failures | length }} blocking problem{{ '' if report.failures | length == 1 else 's' }}
+        {% endif %}
+      </div>
+      <div class="sub">
+        {{ report.checks | length }} checks ·
+        {{ report.warnings | length }} warning{{ '' if report.warnings | length == 1 else 's' }} ·
+        data in {{ data_dir }}
+      </div>
+    </div>
+  </div>
+
+  <div class="grid">
+    {% for category, checks in grouped.items() %}
+      <section class="card">
+        <header>{{ category }}</header>
+        <ul>
+          {% for check in checks %}
+            <li class="check {{ check.status.value }}">
+              <span class="mark">{{ marks[check.status.value] }}</span>
+              <span class="title">{{ check.title }}</span>
+              {% if check.detail %}<span class="detail">{{ check.detail }}</span>{% endif %}
+              {% if check.hint and check.status.value != 'ok' %}
+                <span class="hint">{{ check.hint }}</span>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% endfor %}
+  </div>
+
+  <p class="note">
+    Machine-readable versions of everything above:
+    <a href="/api/system/preflight">/api/system/preflight</a>,
+    <a href="/api/system/capabilities">/api/system/capabilities</a>,
+    <a href="/api/system/metrics">/api/system/metrics</a>.
+    <a href="/preflight?refresh=1">Run the checks again</a> — they spawn ffmpeg,
+    so the result is cached between visits.
+  </p>
+{% endblock %}

@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "negative_prompt": "text, watermark, logo, signature, face, human, person, hands, blurry, low quality, jpeg artifacts, oversaturated, borders, frame",
+  "style_suffix": "abstract, non-representational, seamless, cinematic lighting, ultra detailed, 8k, dark background",
+  "presets": [
+    {
+      "id": "deep_space_nebula",
+      "name": "Deep space nebula",
+      "prompt": "vast deep space nebula, clouds of cyan and violet gas, distant starfield, volumetric depth, slow drifting cosmic dust",
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "neon_geometric_tunnel",
+      "name": "Neon geometric tunnel",
+      "prompt": "endless neon geometric tunnel, glowing magenta and cyan edges, perfect symmetry, reflective black floor, vanishing point",
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "liquid_chrome",
+      "name": "Liquid chrome",
+      "prompt": "flowing liquid chrome surface, mirror metal ripples, iridescent reflections, molten silver waves, high contrast",
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "aurora_black_ocean",
+      "name": "Aurora over black ocean",
+      "prompt": "aurora borealis over a still black ocean, teal and violet curtains of light, mirrored reflection, deep night",
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "fractal_bloom",
+      "name": "Fractal bloom",
+      "prompt": "intricate fractal bloom unfolding, recursive petals, luminous edges, deep blue to magenta gradient, mathematical beauty",
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "iridescent_smoke",
+      "name": "Iridescent smoke",
+      "prompt": "iridescent smoke curling in darkness, oil-slick colours, soft volumetric light, slow turbulence, macro detail",
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "cyber_grid_horizon",
+      "name": "Cyber grid horizon",
+      "prompt": "infinite cyber grid stretching to a glowing horizon, retro synthwave perspective, cyan wireframe, violet sky, no sun",
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "kaleidoscopic_mandala",
+      "name": "Kaleidoscopic mandala",
+      "prompt": "kaleidoscopic mandala of light, radial symmetry, layered translucent petals, gold and teal, hypnotic detail",
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "prismatic_refraction",
+      "name": "Prismatic light refraction",
+      "prompt": "prismatic light refracting through crystal, sharp spectral beams, caustic patterns on black, glass dispersion",
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "wave_interference",
+      "name": "Abstract wave interference",
+      "prompt": "abstract interference pattern of overlapping waves, moire ripples, luminous contour lines, deep blue and cyan",
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "molten_glass",
+      "name": "Molten glass",
+      "prompt": "molten glass flowing and folding, glowing amber and teal core, translucent layers, viscous motion frozen",
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "ultraviolet_particles",
+      "name": "Ultraviolet particles",
+      "prompt": "swarm of ultraviolet particles in dark space, depth of field bokeh, magenta and violet glow, weightless drift",
+      "weight": 1.0,
+      "enabled": true
+    }
+  ]
+}

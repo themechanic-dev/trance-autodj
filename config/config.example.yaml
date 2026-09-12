@@ -1,0 +1,284 @@
+# ============================================================================
+#  Trance AutoDJ & Visual Broadcaster — configuration
+# ============================================================================
+#  Copy to config/config.yaml and edit. Every value here can be overridden by
+#  an environment variable using the prefix TAD_ and "__" between levels:
+#
+#      TAD_APP__PORT=9000
+#      TAD_AUDIO__CROSSFADE__DURATION_S=18
+#      TAD_STREAM__YOUTUBE__STREAM_KEY=xxxx-xxxx-xxxx-xxxx
+#
+#  Environment always wins over the file. Nothing in the code carries a
+#  hardcoded value that is not represented here.
+# ============================================================================
+
+app:
+  host: 0.0.0.0
+  port: 8080
+  # All mutable state lives under this directory. In Docker it is a volume.
+  data_dir: ./data
+  # Where config.yaml, prompts.json and palettes.json live.
+  config_dir: ./config
+  timezone: Europe/Athens
+  # debug | info | warning | error
+  log_level: info
+  # json (production, machine readable) | console (human readable)
+  log_format: json
+  log_max_bytes: 10485760
+  log_backup_count: 7
+  # Come back up the way you went down: if the audio was on air, or the
+  # broadcast was live, when this instance last stopped, start them again.
+  # Only intent is restored — whatever you stopped on purpose stays stopped.
+  resume_on_start: true
+
+auth:
+  enabled: true
+  username: admin
+  # bcrypt hash. Generate: python -m app.core.security hash-password
+  # Empty means "first-run setup required" — the UI will ask for a password.
+  password_hash: ""
+  # Signs the session cookie. Leave empty and one is generated into
+  # <data_dir>/state/session.key on first boot (mode 0600).
+  session_secret: ""
+  session_max_age_s: 604800
+  cookie_secure: false
+
+# ---------------------------------------------------------------------------
+#  AUDIO — Liquidsoap + Icecast
+# ---------------------------------------------------------------------------
+audio:
+  # shuffle | sequential | random
+  mode: shuffle
+
+  crossfade:
+    # Tuned for trance. The UI clamps to [min_duration_s, max_duration_s].
+    duration_s: 14.0
+    min_duration_s: 4.0
+    max_duration_s: 30.0
+    # Do not crossfade tracks shorter than this (interludes, stingers).
+    minimum_track_s: 2.0
+    # linear | log | exponential | sinusoidal
+    fade_in_curve: log
+    fade_out_curve: log
+    # Width of the power-measurement window Liquidsoap uses to compare the two
+    # sides of a transition. Larger = a more considered decision, more latency.
+    width_s: 2.0
+    # Round each crossfade to a whole number of bars of the outgoing track.
+    # Needs analysed tracks; does nothing until they have a measured tempo.
+    beat_aligned: false
+    # Also trim the start of each track to its first beat so the two grids
+    # line up. This removes audio, hence separate and off by default.
+    beat_align_cue_in: false
+    max_cue_in_s: 2.0
+
+  # Offline tempo detection, run when a file is scanned. Never on the live path.
+  analysis:
+    enabled: true
+    # Outside this range it is not trance, and a match would usually be a
+    # half- or double-tempo error rather than a discovery.
+    min_bpm: 118.0
+    max_bpm: 152.0
+    # librosa is used when installed (it is not a requirement: it pulls in
+    # scipy, scikit-learn and numba). Otherwise the built-in numpy detector
+    # runs, which measures to about 0.2 BPM on 4/4 material.
+    prefer_librosa: true
+    min_confidence: 0.12
+
+  loudness:
+    enabled: true
+    # YouTube normalises to -14 LUFS; matching it avoids their re-processing.
+    target_lufs: -14.0
+
+  # Never-silence policy: if the playlist empties or a file fails, fall back
+  # to this single track, then to a generated tone, and keep retrying.
+  safe_track: ""
+  # Seconds between attempts to reload a failed playlist.
+  retry_delay_s: 10.0
+
+  icecast:
+    host: 127.0.0.1
+    port: 8000
+    mount: /stream
+    # mp3 | opus
+    format: mp3
+    bitrate_k: 320
+    # Empty -> generated into <data_dir>/state/icecast.secrets.json on boot.
+    source_password: ""
+    admin_password: ""
+    # Managed by us inside the container/VM. Set false to point at your own.
+    managed: true
+    binary: icecast2
+
+  liquidsoap:
+    binary: liquidsoap
+    # Telnet control surface, used for hot playlist reload and metadata.
+    telnet_host: 127.0.0.1
+    telnet_port: 1234
+    # Extra raw .liq injected at the end of the generated script.
+    extra_config: ""
+
+# ---------------------------------------------------------------------------
+#  VIDEO PROFILE — must be byte-identical across every block, otherwise
+#  "-c:v copy" in the streamer breaks at the joins.
+# ---------------------------------------------------------------------------
+video:
+  width: 1280
+  height: 720
+  fps: 30
+  bitrate_k: 3500
+  maxrate_k: 3500
+  bufsize_k: 7000
+  # GOP of 2 seconds. Closed GOP + no scene-cut detection is what makes the
+  # concatenation of independently encoded blocks legal for the muxer.
+  gop: 60
+  keyint_min: 60
+  bframes: 2
+  pix_fmt: yuv420p
+  h264_profile: high
+  h264_level: "4.1"
+  # auto | libx264 | h264_nvenc   (auto = nvenc when a usable NVIDIA GPU exists)
+  encoder: auto
+  # libx264 preset; ignored by nvenc which uses nvenc_preset below.
+  preset: veryfast
+  nvenc_preset: p4
+  # Extra encoder args, appended verbatim. Use with care: changing these
+  # between blocks is exactly what breaks -c:v copy.
+  extra_args: []
+
+# ---------------------------------------------------------------------------
+#  VISUAL GENERATOR (offline)
+# ---------------------------------------------------------------------------
+visual:
+  clip:
+    min_duration_s: 20.0
+    max_duration_s: 40.0
+    # Make the last frame meet the first one so a clip can loop unnoticed.
+    perfect_loop: true
+    # Post effects applied to every clip so it does not look "dry".
+    film_grain: 0.04
+    vignette: true
+    chromatic_aberration: 0.0015
+
+  block:
+    duration_s: 600.0
+    # Crossfade between clips inside a block — baked in, the streamer never
+    # composites anything.
+    transition_min_s: 3.0
+    transition_max_s: 5.0
+    transitions: [fade, dissolve, smoothleft, circleopen, radial, pixelize]
+    # Fade from/to black at the block edges so block->block joins are smooth.
+    edge_fade_s: 1.0
+
+  pool:
+    # Below this the generator works as hard as the CPU budget allows.
+    min_blocks: 12
+    # Above this it stops entirely.
+    max_blocks: 60
+    max_disk_gb: 50.0
+    # Keep rejected blocks for inspection instead of deleting them.
+    keep_rejected: true
+    # Generate a JPEG thumbnail per block for the dashboard grid.
+    thumbnails: true
+
+  sources:
+    # Share of blocks built from AI stills. 0.0 = procedural only, which is
+    # the safe default because it needs no model download.
+    ai_ratio: 0.0
+
+  ai:
+    # auto | cuda | openvino | sdcpp | none
+    #   auto -> cuda if a working NVIDIA GPU is present, else sdcpp, else none
+    backend: auto
+    model_id: stabilityai/sd-turbo
+    models_dir: ""          # empty -> <data_dir>/models
+    steps: 4
+    guidance_scale: 0.0     # sd-turbo is trained for CFG-free sampling
+    width: 512
+    height: 512
+    # 0 -> max(1, cpu_count - 2)
+    threads: 0
+    negative_prompt: "text, watermark, logo, face, human, blurry, low quality, jpeg artifacts"
+    # Images kept per block build before being recycled.
+    images_per_clip: 3
+
+  procedural:
+    # Enabled generator plugins. Unknown names are ignored with a warning.
+    generators: [flowfield, plasma, domainwarp, tunnel, reaction_diffusion, waves]
+    # Render resolution for procedural frames; upscaled to the video profile.
+    # Lower = much cheaper, and the upscale is invisible on soft abstract art.
+    render_scale: 0.5
+    # Use numba JIT when available. Falls back to vectorised numpy.
+    use_numba: true
+
+# ---------------------------------------------------------------------------
+#  STREAMER
+# ---------------------------------------------------------------------------
+stream:
+  youtube:
+    rtmp_url: "rtmp://a.rtmp.youtube.com/live2"
+    # NEVER stored here in plaintext. Written encrypted to
+    # <data_dir>/state/secrets.enc by the dashboard. This field only exists
+    # so the value can be injected by TAD_STREAM__YOUTUBE__STREAM_KEY.
+    stream_key: ""
+
+  audio:
+    codec: aac
+    bitrate_k: 192
+    sample_rate: 44100
+    channels: 2
+
+  # copy = never re-encode video (the whole point). reencode = fallback if
+  # timestamps misbehave at block joins, at real CPU cost.
+  video_mode: copy
+
+  # Named pipe the feeder writes .ts bytes into.
+  fifo_name: video.fifo
+  # Weighted shuffle: blocks with fewer plays are preferred. 0 = pure random.
+  play_count_weight: 1.0
+
+  watchdog:
+    enabled: true
+    backoff_min_s: 2.0
+    backoff_max_s: 60.0
+    # Consider ffmpeg dead if it emits no progress for this long.
+    stall_timeout_s: 60.0
+
+  # Audio-reactive overlay FORCES a video re-encode. Off by default.
+  reactive_overlay:
+    enabled: false
+    # showcqt | showspectrum | showwaves
+    filter: showcqt
+    opacity: 0.25
+    height_pct: 22
+
+# ---------------------------------------------------------------------------
+#  CPU POLICY — a requirement, not a preference
+# ---------------------------------------------------------------------------
+cpu:
+  generator_nice: 19
+  generator_ionice_class: idle
+  # systemd CPUQuota for the generator unit, in percent (150 = 1.5 cores).
+  generator_quota_pct: 150
+  # Skip starting a new job while 1-min loadavg > cpu_count * this.
+  load_threshold_factor: 0.7
+  # Re-check interval while throttled.
+  throttle_poll_s: 30.0
+  max_concurrent_jobs: 1
+  # Freeze generation entirely while the stream is live.
+  pause_during_stream: false
+  quiet_hours:
+    enabled: false
+    # Local time window where the generator ignores the load threshold.
+    start: "02:00"
+    end: "08:00"
+
+# ---------------------------------------------------------------------------
+#  EXTERNAL COMMANDS
+# ---------------------------------------------------------------------------
+tools:
+  ffmpeg: ffmpeg
+  ffprobe: ffprobe
+  # Default timeout for one-shot commands (probing, encoding a clip).
+  timeout_s: 900.0
+  retries: 2
+  retry_delay_s: 3.0

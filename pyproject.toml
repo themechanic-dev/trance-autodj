@@ -1,0 +1,81 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "trance-autodj"
+version = "0.1.0"
+description = "Self-hosted 24/7 trance radio with generative visuals, streamed to YouTube Live"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+keywords = ["trance", "radio", "liquidsoap", "ffmpeg", "youtube", "generative", "visuals"]
+classifiers = [
+  "Environment :: Console",
+  "Intended Audience :: End Users/Desktop",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Topic :: Multimedia :: Sound/Audio",
+  "Topic :: Multimedia :: Video",
+]
+dynamic = ["dependencies", "optional-dependencies"]
+
+[project.scripts]
+trance-autodj = "app.main:main"
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+optional-dependencies.optional = { file = ["requirements-optional.txt"] }
+optional-dependencies.dev = { file = ["requirements-dev.txt"] }
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "PTH", "RUF", "S", "PL"]
+ignore = [
+  "S101",    # assert is fine in tests and in internal invariants
+  "PLR0913", # a config-heavy codebase legitimately passes many arguments
+  "RUF001",  # ambiguous unicode: the UI text is intentional
+  "PLC0415", # optional dependencies (torch, psutil, numba) are imported lazily
+             # on purpose, so that their absence degrades a feature instead of
+             # preventing the process from starting
+  "RUF012",  # pydantic's `model_config` is a plain dict by design
+  "S311",    # `random` picks palettes, seeds and transitions — visual variety,
+             # never a security decision. Secrets use `secrets` (core.security).
+  "UP042",   # enums are `(str, Enum)` throughout for one consistent style;
+             # the SQLModel-backed ones cannot be `StrEnum` (see below)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S", "PLR2004", "PLC0415"]
+"scripts/*" = ["E402"]  # sys.path is adjusted before importing the app
+
+# SQLModel resolves these annotations at runtime to build its mappers, and it
+# does not understand every modern spelling. `Optional[X]` and `List[X]` are
+# load-bearing here: rewriting them to `X | None` and `list[X]` makes
+# SQLAlchemy fail with "seems to be using a generic class as the argument to
+# relationship()". Likewise `(str, Enum)` rather than `StrEnum`.
+"app/models/entities.py" = ["UP006", "UP007", "UP035", "UP037", "UP045", "UP042"]
+
+# `Depends(...)` in a signature default is the FastAPI idiom, not a bug.
+"app/api/*.py" = ["B008"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+markers = [
+  "slow: needs ffmpeg and actually encodes video",
+]
+filterwarnings = ["error::DeprecationWarning:app.*"]

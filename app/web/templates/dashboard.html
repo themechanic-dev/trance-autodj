@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}Trance AutoDJ{% endblock %}
+
+{% block content %}
+  <div class="verdict" id="onair">
+    <span class="dot"></span>
+    <div><div class="headline">…</div><div class="sub"></div></div>
+  </div>
+
+  <div class="toolbar">
+    <button class="primary" id="golive">GO LIVE</button>
+    <button class="mini danger" id="stopstream">STOP STREAM</button>
+    <span style="width:1rem"></span>
+    <button class="mini" id="audiostart">Start audio</button>
+    <button class="mini" id="audiostop">Stop audio</button>
+    <span class="grow"></span>
+    <form method="post" action="/logout" style="margin:0">
+      <button class="mini" type="submit">sign out</button>
+    </form>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="grid">
+    <section class="card">
+      <header>now playing</header>
+      <div style="padding:.85rem">
+        <div id="npTitle" style="font-size:1.05rem;font-weight:600">—</div>
+        <div id="npAlbum" style="color:var(--text-dim);font-size:.85rem;margin-top:.15rem"></div>
+        <div class="bar" style="margin-top:.7rem"><i id="npBar" style="width:0%"></i></div>
+        <div id="npTime" style="font-family:var(--mono);font-size:.74rem;color:var(--text-faint);
+             margin-top:.3rem"></div>
+        <audio id="player" controls preload="none" style="width:100%;margin-top:.8rem;height:2rem"></audio>
+      </div>
+    </section>
+
+    <section class="card">
+      <header>on screen</header>
+      <div style="padding:0">
+        <div id="visualWrap" style="aspect-ratio:16/9;background:var(--bg-sunken)"></div>
+        <div style="padding:.6rem .85rem;font-family:var(--mono);font-size:.74rem;color:var(--text-faint)"
+             id="visualMeta">—</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <header>machine</header>
+      <dl class="kv" id="metrics"></dl>
+    </section>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const mmss = (s) => { s = Math.max(0, Math.round(s || 0));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+const hhmm = (s) => { s = Math.round(s || 0);
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
+  return h ? `${h}h ${m}m` : `${m}m`; };
+
+async function api(p, o) {
+  const r = await fetch(p, o);
+  const t = await r.text();
+  if (!r.ok) throw new Error(t.slice(0, 200));
+  return t ? JSON.parse(t) : {};
+}
+
+let shownBlock = null;
+
+async function refresh() {
+  const [stream, audio, pool, metrics] = await Promise.all([
+    api('/api/stream/status'), api('/api/audio/status'),
+    api('/api/visuals/pool'), api('/api/system/metrics'),
+  ]);
+
+  const live = stream.live;
+  const v = $('onair');
+  v.className = 'verdict ' + (live ? 'pass' : 'fail');
+  v.querySelector('.headline').textContent = live ? 'ON AIR' : 'Off air';
+  v.querySelector('.sub').textContent = live
+    ? `broadcasting ${hhmm(stream.uptime_s)} · ${stream.health.speed}× · ` +
+      `${stream.health.dropped_frames} dropped · ${stream.restarts} restart(s)`
+    : (audio.on_air ? 'audio is running — press GO LIVE to broadcast'
+                    : 'audio is not running');
+
+  const hours = pool.hours_available;
+  $('stats').innerHTML = `
+    <div class="stat"><div class="label">audio</div>
+      <div class="value${audio.on_air ? '' : ' warn'}">${audio.on_air ? 'up' : 'down'}</div>
+      <div class="sub">${audio.stream_reachable ? 'mount streaming' : 'silent'}</div></div>
+    <div class="stat"><div class="label">visual pool</div>
+      <div class="value${pool.below_minimum ? ' warn' : ''}">${pool.ready}</div>
+      <div class="sub">${hours.toFixed(1)}h of video</div></div>
+    <div class="stat"><div class="label">cpu</div>
+      <div class="value${metrics.cpu_percent > 80 ? ' warn' : ''}">${metrics.cpu_percent}%</div>
+      <div class="sub">load ${metrics.load_1m} / ${metrics.cpu_count} cores</div></div>
+    <div class="stat"><div class="label">disk free</div>
+      <div class="value">${metrics.disk_free_gb}G</div>
+      <div class="sub">ram ${metrics.memory_percent}%</div></div>`;
+
+  const np = audio.now_playing;
+  $('npTitle').textContent = np.display;
+  $('npAlbum').textContent = [np.album, np.bpm ? `${Math.round(np.bpm)} BPM` : '']
+    .filter(Boolean).join(' · ');
+  $('npTime').textContent = `${mmss(np.elapsed_s)} elapsed`;
+  $('npBar').style.width = Math.min(100, (np.elapsed_s / 420) * 100) + '%';
+
+  $('metrics').innerHTML = `
+    <dt>cpu</dt><dd>${metrics.cpu_percent}% · load ${metrics.load_1m} ${metrics.load_5m} ${metrics.load_15m}</dd>
+    <dt>memory</dt><dd>${metrics.memory_used_mb} / ${metrics.memory_total_mb} MB</dd>
+    <dt>disk</dt><dd>${metrics.disk_free_gb} GB free of ${metrics.disk_total_gb} GB</dd>
+    <dt>gpu</dt><dd>${metrics.gpu_present ? esc(metrics.gpu_name) : 'none — CPU only'}</dd>
+    ${metrics.temperature_c ? `<dt>temp</dt><dd>${metrics.temperature_c.toFixed(0)}°C</dd>` : ''}
+    <dt>pool</dt><dd>${pool.ready} blocks · ${pool.size_gb} GB of ${pool.max_disk_gb} GB</dd>`;
+
+  // Show whatever block is on screen right now, or the newest one when idle.
+  const blockId = stream.feeder.current_block;
+  if (blockId && blockId !== shownBlock) {
+    shownBlock = blockId;
+    $('visualWrap').innerHTML =
+      `<img src="/api/visuals/blocks/${blockId}/thumbnail" alt=""
+            style="width:100%;height:100%;object-fit:cover">`;
+    $('visualMeta').textContent = `block ${blockId.slice(0, 12)} · on air now`;
+  } else if (!blockId && shownBlock !== 'idle') {
+    shownBlock = 'idle';
+    const blocks = await api('/api/visuals/blocks?status=ready&limit=1');
+    if (blocks.blocks.length) {
+      const b = blocks.blocks[0];
+      $('visualWrap').innerHTML =
+        `<img src="/api/visuals/blocks/${b.id}/thumbnail" alt=""
+              style="width:100%;height:100%;object-fit:cover;opacity:.55">`;
+      $('visualMeta').textContent = `newest block · ${b.generators.join(', ')}`;
+    } else {
+      $('visualWrap').innerHTML =
+        '<div style="display:grid;place-items:center;height:100%;color:var(--text-faint)">no blocks yet</div>';
+    }
+  }
+}
+
+const post = (p, confirmText) => async () => {
+  if (confirmText && !confirm(confirmText)) return;
+  try { await api(p, { method: 'POST' }); } catch (e) { alert(e.message); }
+  refresh();
+};
+$('golive').addEventListener('click', post('/api/stream/start', 'Start broadcasting to YouTube?'));
+$('stopstream').addEventListener('click', post('/api/stream/stop', 'Stop the broadcast?'));
+$('audiostart').addEventListener('click', post('/api/audio/start'));
+$('audiostop').addEventListener('click', post('/api/audio/stop', 'Stop the audio engine?'));
+
+$('player').src = `${location.protocol}//${location.hostname}:8000/stream`;
+
+refresh();
+setInterval(refresh, 3000);
+</script>
+{% endblock %}

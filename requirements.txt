@@ -1,0 +1,26 @@
+# Core runtime. Verified against Python 3.14 (Ubuntu 26.04), which is what the
+# container and the reference VM both ship.
+#
+# uvicorn is installed WITHOUT [standard] on purpose: that extra pulls uvloop
+# and httptools, whose wheels lag new Python releases, and this dashboard
+# serves a handful of requests per minute. Plain asyncio is plenty and it
+# removes two ways for a build to break.
+
+fastapi>=0.115
+uvicorn>=0.34
+jinja2>=3.1
+python-multipart>=0.0.20
+itsdangerous>=2.2
+
+sqlmodel>=0.0.22
+pydantic>=2.9
+PyYAML>=6.0
+
+numpy>=2.1
+pillow>=11.0
+
+mutagen>=1.47
+psutil>=6.0
+
+bcrypt>=4.2
+cryptography>=43.0

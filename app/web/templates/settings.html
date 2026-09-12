@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% block title %}Settings — Trance AutoDJ{% endblock %}
+
+{% block content %}
+  <p class="note" style="margin-top:0">
+    Changes are stored in the database and layered on top of <code>config.yaml</code>.
+    A value pinned by a <code>TAD_*</code> environment variable is shown locked, because
+    an environment variable is a deployment decision and a web form should not
+    quietly undo it. Audio settings restart Liquidsoap; video settings apply to
+    the <em>next</em> block built, since existing blocks cannot change profile.
+  </p>
+
+  <div class="toolbar">
+    <button class="primary" id="save" disabled>Save changes</button>
+    <span id="dirty" style="font-family:var(--mono);font-size:.76rem;color:var(--text-dim)"></span>
+    <span class="grow"></span>
+    <button class="mini" id="reload">discard</button>
+  </div>
+
+  <div id="groups"></div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+const CHOICES = {
+  'audio.mode': ['shuffle', 'sequential', 'random'],
+  'audio.crossfade.fade_in_curve': ['linear', 'log', 'exponential', 'sinusoidal'],
+  'audio.crossfade.fade_out_curve': ['linear', 'log', 'exponential', 'sinusoidal'],
+  'video.encoder': ['auto', 'libx264', 'h264_nvenc'],
+  'video.preset': ['ultrafast', 'superfast', 'veryfast', 'faster', 'fast', 'medium'],
+  'stream.video_mode': ['copy', 'reencode'],
+  'visual.ai.backend': ['auto', 'cuda', 'openvino', 'sdcpp', 'none'],
+};
+
+const GROUP_TITLES = {
+  audio: 'Audio engine', video: 'Video profile', visuals: 'Visual generator',
+  stream: 'Broadcast', cpu: 'CPU policy',
+};
+
+let pending = {};
+
+async function api(p, o) {
+  const r = await fetch(p, o);
+  const t = await r.text();
+  if (!r.ok) throw new Error(t.slice(0, 400));
+  return t ? JSON.parse(t) : {};
+}
+
+function field(row) {
+  const id = 'f_' + row.path.replace(/\./g, '_');
+  const disabled = row.locked ? 'disabled' : '';
+  const style = 'font-family:var(--mono);font-size:.8rem;padding:.35rem .55rem;' +
+    'border-radius:6px;border:1px solid var(--border-bright);background:var(--bg-raised);' +
+    'color:var(--text);width:11rem' + (row.locked ? ';opacity:.5' : '');
+
+  let control;
+  if (CHOICES[row.path]) {
+    control = `<select id="${id}" data-path="${row.path}" ${disabled} style="${style}">` +
+      CHOICES[row.path].map((c) =>
+        `<option ${c === row.value ? 'selected' : ''}>${c}</option>`).join('') + '</select>';
+  } else if (row.type === 'bool') {
+    control = `<input type="checkbox" id="${id}" data-path="${row.path}" ${disabled}
+      ${row.value ? 'checked' : ''} style="width:1.1rem;height:1.1rem;accent-color:var(--cyan)">`;
+  } else if (row.type === 'int' || row.type === 'float') {
+    const step = row.type === 'float' ? 'any' : '1';
+    control = `<input type="number" step="${step}" id="${id}" data-path="${row.path}"
+      value="${row.value}" ${disabled} style="${style}">`;
+  } else {
+    control = `<input type="text" id="${id}" data-path="${row.path}"
+      value="${esc(row.value)}" ${disabled} style="${style}">`;
+  }
+
+  return `<div class="check" style="grid-template-columns:1fr auto;align-items:center">
+    <span class="title">${esc(row.label)}
+      ${row.overridden ? '<span style="color:var(--amber);font-size:.7rem"> · changed</span>' : ''}
+      ${row.locked ? '<span style="color:var(--text-faint);font-size:.7rem"> · locked by environment</span>' : ''}
+      <span class="detail" style="grid-column:1">${row.path}</span></span>
+    ${control}</div>`;
+}
+
+async function load() {
+  pending = {};
+  updateDirty();
+  const data = await api('/api/settings');
+  $('groups').innerHTML = '<div class="grid">' + Object.entries(data.groups).map(([g, rows]) => `
+    <section class="card"><header>${GROUP_TITLES[g] || g}</header>
+      <div>${rows.map(field).join('')}</div></section>`).join('') + '</div>';
+
+  $('groups').querySelectorAll('[data-path]').forEach((el) => {
+    el.addEventListener('change', () => {
+      const path = el.dataset.path;
+      pending[path] = el.type === 'checkbox' ? el.checked
+        : (el.type === 'number' ? Number(el.value) : el.value);
+      updateDirty();
+    });
+  });
+}
+
+function updateDirty() {
+  const n = Object.keys(pending).length;
+  $('save').disabled = n === 0;
+  $('dirty').textContent = n ? `${n} unsaved change${n === 1 ? '' : 's'}` : '';
+}
+
+$('save').addEventListener('click', async () => {
+  try {
+    const r = await api('/api/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(pending),
+    });
+    alert(`Saved ${r.accepted.length} setting(s).` +
+      (r.audio_restarted ? '\nLiquidsoap was restarted.' : '') +
+      (r.rejected.length ? '\n\nRejected:\n' + r.rejected.join('\n') : ''));
+  } catch (e) {
+    alert('Nothing was saved.\n\n' + e.message);
+  }
+  load();
+});
+$('reload').addEventListener('click', load);
+load();
+</script>
+{% endblock %}

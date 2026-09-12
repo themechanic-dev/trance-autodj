@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "palettes": [
+    {
+      "id": "deep_ocean",
+      "name": "Deep blue / cyan",
+      "colors": ["#02040f", "#062044", "#0b4f8a", "#18a3c9", "#5ee7f0", "#c8fbff"],
+      "weight": 1.2,
+      "enabled": true
+    },
+    {
+      "id": "magenta_violet",
+      "name": "Magenta / violet",
+      "colors": ["#06020f", "#2a0b45", "#5c1a8a", "#a32bc4", "#ff3ec8", "#ffc2ee"],
+      "weight": 1.2,
+      "enabled": true
+    },
+    {
+      "id": "teal_gold",
+      "name": "Teal / gold",
+      "colors": ["#03100e", "#0a3b34", "#12796a", "#2ee6c0", "#ffd166", "#fff3cc"],
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "ultraviolet",
+      "name": "Ultraviolet",
+      "colors": ["#04010a", "#1b0740", "#3d13a0", "#6f3cff", "#b18cff", "#e8dcff"],
+      "weight": 1.0,
+      "enabled": true
+    },
+    {
+      "id": "sunset_orange_pink",
+      "name": "Sunset orange / pink",
+      "colors": ["#10030a", "#3d0a2c", "#8c1c50", "#e0426e", "#ff8f5e", "#ffd9b8"],
+      "weight": 0.9,
+      "enabled": true
+    },
+    {
+      "id": "ice_white",
+      "name": "Ice",
+      "colors": ["#01040a", "#0a1a2e", "#1e4a6b", "#4a92b8", "#9fd8ef", "#ffffff"],
+      "weight": 0.7,
+      "enabled": true
+    }
+  ]
+}

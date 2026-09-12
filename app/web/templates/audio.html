@@ -1,0 +1,1056 @@
+{% extends "base.html" %}
+{% set active_page = 'audio' %}
+{% block title %}Audio — Trance AutoDJ{% endblock %}
+
+{% block content %}
+  <div class="verdict" id="verdict">
+    <span class="dot"></span>
+    <div><div class="headline">checking…</div><div class="sub"></div></div>
+  </div>
+
+  <div class="toolbar">
+    <button class="primary" id="start">Start audio</button>
+    <button class="mini" id="stop">Stop</button>
+    <button class="mini" id="restartbtn">Restart</button>
+    <button class="mini" id="skip">Skip track</button>
+    <span class="grow"></span>
+    <button class="mini" id="scan">Rescan library</button>
+    <button class="mini" id="analyse">Analyse tempo</button>
+    <button class="mini danger" id="purge">Remove missing</button>
+    <button class="mini danger" id="eraselib">Empty library</button>
+    <button class="mini danger" id="prunepl">Remove empty lists</button>
+    <a class="mini" style="text-decoration:none" id="listen" href="#" target="_blank">Listen</a>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="grid">
+    <section class="card">
+      <header>now playing</header>
+      <dl class="kv" id="np"></dl>
+    </section>
+    <section class="card">
+      <header>processes</header>
+      <dl class="kv" id="procs"></dl>
+    </section>
+  </div>
+
+  <section class="card" style="margin-top:1.1rem">
+    <header>playlists <span id="plhint" style="color:var(--dim)"></span></header>
+
+    <div style="padding:.7rem .85rem;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+      <span style="font-size:.8rem;color:var(--text-dim)">The station plays</span>
+      <button class="mini" id="mode-single">one list, looping</button>
+      <button class="mini" id="mode-rotation">the rotation, in order</button>
+      <span class="grow"></span>
+      <input id="newname" placeholder="new playlist name" maxlength="60"
+             style="font-family:var(--mono);font-size:.78rem;padding:.35rem .55rem;
+                    border-radius:7px;border:1px solid var(--border-bright);
+                    background:var(--bg-raised);color:var(--text)">
+      <button class="mini" id="newlist">create</button>
+    </div>
+
+    <div id="rotwrap" style="padding:0 .85rem .3rem">
+      <div style="font-family:var(--mono);font-size:.7rem;color:var(--text-faint);
+                  padding:.2rem 0 .35rem">ROTATION — played top to bottom, then again</div>
+      <ul id="rotation" style="list-style:none;margin:0 0 .6rem;padding:0;font-size:.82rem"></ul>
+    </div>
+
+    <div style="padding:0 .85rem .3rem">
+      <div style="font-family:var(--mono);font-size:.7rem;color:var(--text-faint);
+                  padding:.2rem 0 .35rem">ALL PLAYLISTS</div>
+    </div>
+    <ul id="playlists" style="list-style:none;margin:0;padding:0 0 .5rem"></ul>
+
+    <div id="editwrap" style="display:none;padding:.6rem .85rem;border-top:1px solid var(--border)">
+      <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.5rem">
+        <strong id="editname" style="font-size:.85rem"></strong>
+        <span id="editcount" style="color:var(--text-faint);font-family:var(--mono);
+              font-size:.72rem"></span>
+        <span class="grow"></span>
+        <button class="mini" id="editall">select all</button>
+        <button class="mini" id="editnone">clear</button>
+        <button class="mini primary" id="editsave">save</button>
+        <button class="mini" id="editcancel">close</button>
+      </div>
+      <div id="editlist" style="max-height:18rem;overflow:auto;font-size:.8rem"></div>
+    </div>
+  </section>
+
+  <section class="card" style="margin-top:1.1rem">
+    <header>add music <span id="uphint" style="color:var(--dim)"></span></header>
+    <div style="padding:.7rem .85rem">
+      <div id="drop" style="border:1.5px dashed var(--border-bright);border-radius:10px;
+           padding:1.1rem;text-align:center;background:var(--bg-raised);
+           transition:border-color .12s,background .12s">
+        <div style="font-size:.9rem;margin-bottom:.55rem">
+          Drop audio files here, or
+          <button class="mini" id="pick" style="vertical-align:baseline">choose files</button>
+          <button class="mini" id="pickdir" style="vertical-align:baseline">choose folder</button>
+        </div>
+        <div style="font-size:.76rem;color:var(--text-dim);margin-bottom:.5rem">
+          Drop a folder here or pick one: it becomes a playlist of the same name.
+          Everything that is not music — cover art, subfolders of images, anything
+          else — is left behind.
+        </div>
+        <div id="uprules" style="font-size:.74rem;color:var(--dim)"></div>
+      </div>
+      <input type="file" id="picker" multiple accept="audio/*" style="display:none">
+      <input type="file" id="dirpicker" multiple webkitdirectory directory style="display:none">
+      <ul id="queue" style="list-style:none;margin:.7rem 0 0;padding:0;font-size:.8rem"></ul>
+    </div>
+  </section>
+
+  <section class="card" style="margin-top:1.1rem">
+    <header>compose <span id="genstate" style="color:var(--dim)"></span></header>
+    <div style="padding:.75rem .85rem">
+      <p style="margin:0 0 .7rem;font-size:.82rem;color:var(--text-dim)">
+        Trance built from arithmetic — oscillators, filters and an arrangement, no samples
+        and no model. Nothing is downloaded and nothing is anybody else's, so nothing can be
+        claimed. About sixteen seconds of one core per five-minute track.
+      </p>
+
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:flex-end">
+        <label style="font-size:.74rem;color:var(--text-faint);font-family:var(--mono)">
+          TRACKS<br>
+          <input id="gencount" type="number" value="3" min="1" max="10000"
+                 style="width:5rem;font-family:var(--mono);font-size:.8rem;padding:.35rem .5rem;
+                        border-radius:7px;border:1px solid var(--border-bright);
+                        background:var(--bg-raised);color:var(--text)"></label>
+        <label style="font-size:.74rem;color:var(--text-faint);font-family:var(--mono)">
+          MINUTES EACH<br>
+          <input id="genminutes" type="number" value="5" min="1" max="12" step="0.5"
+                 style="width:6rem;font-family:var(--mono);font-size:.8rem;padding:.35rem .5rem;
+                        border-radius:7px;border:1px solid var(--border-bright);
+                        background:var(--bg-raised);color:var(--text)"></label>
+        <label style="font-size:.74rem;color:var(--text-faint);font-family:var(--mono)">
+          STYLE<br>
+          <select id="genstyle"
+                  style="font-family:var(--mono);font-size:.8rem;padding:.35rem .5rem;
+                         border-radius:7px;border:1px solid var(--border-bright);
+                         background:var(--bg-raised);color:var(--text)">
+            <option value="mixed">mixed — a bit of each</option>
+          </select></label>
+        <label style="flex:1 1 12rem;font-size:.74rem;color:var(--text-faint);font-family:var(--mono)">
+          INTO PLAYLIST<br>
+          <input id="genplaylist" value="Generated" maxlength="60"
+                 style="width:100%;font-family:var(--mono);font-size:.8rem;padding:.35rem .5rem;
+                        border-radius:7px;border:1px solid var(--border-bright);
+                        background:var(--bg-raised);color:var(--text)"></label>
+        <button class="mini primary" id="gengo">compose</button>
+        <button class="mini danger" id="genstop" style="display:none">stop the queue</button>
+      </div>
+      <p style="margin:.5rem 0 0;font-size:.74rem;color:var(--text-faint)">
+        As many as you like — a hundred is a day on a desktop and a week on a small NAS.
+        The queue lives in the database, so it carries on after a restart, and each track
+        is composed at the lowest priority so the broadcast never waits for it.
+      </p>
+
+      <ul id="genjobs" style="list-style:none;margin:.7rem 0 0;padding:0;font-size:.8rem"></ul>
+    </div>
+  </section>
+
+  <section class="card" style="margin-top:1.1rem">
+    <header>play log <span id="logstate" style="color:var(--dim)"></span></header>
+    <div style="padding:.75rem .85rem">
+      <p style="margin:0 0 .7rem;font-size:.82rem;color:var(--text-dim)">
+        A copyright notice arrives with a time and a thirty-second excerpt, and points at
+        your whole library. This says which file was on air at that minute — and keeps
+        saying it after the file is gone.
+      </p>
+
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:flex-end">
+        <label style="flex:1 1 14rem;font-size:.74rem;color:var(--text-faint);
+               font-family:var(--mono)">WHAT WAS PLAYING AT<br>
+          <input id="logwhen" type="datetime-local"
+                 style="width:100%;font-family:var(--mono);font-size:.8rem;padding:.35rem .5rem;
+                        border-radius:7px;border:1px solid var(--border-bright);
+                        background:var(--bg-raised);color:var(--text)"></label>
+        <button class="mini primary" id="logask">look it up</button>
+        <span class="grow"></span>
+        <button class="mini danger" id="flagclear">unflag all</button>
+        <button class="mini danger" id="flagremove">delete flagged</button>
+      </div>
+
+      <div id="loganswer" style="display:none;margin-top:.6rem;padding:.55rem .7rem;
+           border-radius:8px;background:var(--bg-raised);
+           border:1px solid var(--border-bright);font-size:.84rem"></div>
+
+      <!-- Boxed and scrolling: the log grows by a line every few minutes for
+           as long as the station runs, and a card that grows with it pushes
+           the library off the bottom of the page within a day. -->
+      <div style="max-height:13rem;overflow:auto;margin-top:.7rem;border-radius:8px;
+                  border:1px solid var(--border)">
+        <ul id="logrecent" style="list-style:none;margin:0;padding:0 .6rem;font-size:.8rem"></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" style="margin-top:1.1rem">
+    <header>library <span id="libcount" style="color:var(--cyan)"></span></header>
+    <div style="padding:.6rem .85rem">
+      <input type="search" id="search" placeholder="filter by title, artist, album…"
+             style="width:100%;font-family:var(--mono);font-size:.8rem;padding:.45rem .6rem;
+                    border-radius:7px;border:1px solid var(--border-bright);
+                    background:var(--bg-raised);color:var(--text)">
+    </div>
+    <div style="max-height:26rem;overflow:auto"><table id="tracks"
+      style="width:100%;border-collapse:collapse;font-size:.82rem"></table></div>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) =>
+  ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const mmss = (s) => {
+  s = Math.max(0, Math.round(s || 0));
+  const m = Math.floor(s / 60);
+  return `${m}:${String(s % 60).padStart(2, '0')}`;
+};
+
+async function api(path, options) {
+  const r = await fetch(path, options);
+  if (!r.ok) throw new Error(`${r.status} ${(await r.text()).slice(0, 200)}`);
+  return r.json();
+}
+
+function renderStatus(s) {
+  const v = $('verdict');
+  v.className = 'verdict ' + (s.on_air ? 'pass' : 'fail');
+  v.querySelector('.headline').textContent = s.on_air ? 'ON AIR' : 'Audio is not on air';
+  v.querySelector('.sub').textContent =
+    `icecast ${s.icecast_running ? 'up' : 'down'} · ` +
+    `liquidsoap ${s.liquidsoap_running ? 'up' : 'down'} · ` +
+    `mount ${s.stream_reachable ? 'streaming' : 'silent'} · ` +
+    `telnet ${s.telnet_reachable ? 'ok' : 'unreachable'}`;
+
+  const np = s.now_playing;
+  $('np').innerHTML = `
+    <dt>track</dt><dd>${esc(np.display)}</dd>
+    <dt>album</dt><dd>${esc(np.album) || '—'}</dd>
+    <dt>tempo</dt><dd>${np.bpm ? esc(np.bpm) + ' BPM' : '—'}</dd>
+    <dt>elapsed</dt><dd>${mmss(np.elapsed_s)}</dd>
+    <dt>file</dt><dd>${esc((np.filename || '—').split('/').pop())}</dd>`;
+
+  const p = s.processes;
+  $('procs').innerHTML = ['icecast', 'liquidsoap'].map((k) => `
+    <dt>${k}</dt><dd>${p[k].running ? 'running pid ' + p[k].pid : 'stopped'}
+      ${p[k].restarts ? ` · ${p[k].restarts} restart(s)` : ''}
+      ${p[k].last_error ? `<br><span style="color:var(--red)">${esc(p[k].last_error.slice(0, 90))}</span>` : ''}
+    </dd>`).join('');
+}
+
+let renderedTracks = null;
+let libraryTracks = [];
+
+async function loadTracks() {
+  const q = $('search').value.trim();
+  const data = await api('/api/audio/tracks?limit=500' + (q ? `&search=${encodeURIComponent(q)}` : ''));
+  // The playlist editor picks from the same list the table shows, so there is
+  // never a second, differently-filtered idea of what the library holds.
+  libraryTracks = data.tracks.filter((t) => !t.missing);
+  $('libcount').textContent = `${data.total} tracks · ${mmss(data.duration_s)}`;
+  if (editing) renderEditor();
+  const signature = data.tracks.map((t) => t.id + ':' + t.missing).join(',') + '|' + q;
+  if (signature === renderedTracks) return;
+  renderedTracks = signature;
+
+  $('tracks').innerHTML = data.tracks.length
+    ? '<thead><tr style="text-align:left;color:var(--text-faint);font-family:var(--mono);font-size:.7rem">' +
+      '<th style="padding:.3rem .85rem">artist</th><th>title</th><th>album</th>' +
+      '<th style="text-align:right">bpm</th>' +
+      '<th style="text-align:right">len</th>' +
+      '<th style="text-align:right;padding-right:.85rem"></th></tr></thead><tbody>' +
+      data.tracks.map((t) => `
+        <tr style="border-top:1px solid rgba(29,37,66,.55)${t.missing ? ';opacity:.45' : ''}">
+          <td style="padding:.3rem .85rem;color:var(--text-dim)">${esc(t.artist) || '—'}</td>
+          <td>${esc(t.title)}${t.missing ? ' <span style="color:var(--red)">(missing)</span>' : ''}${
+            t.flagged ? ` <span style="color:var(--warn)" title="${esc(t.flag_note)}">⚑ flagged</span>` : ''}</td>
+          <td style="color:var(--text-faint)">${esc(t.album) || '—'}</td>
+          <td style="text-align:right;font-family:var(--mono);color:${t.bpm ? 'var(--cyan)' : 'var(--text-faint)'}">${
+            t.bpm ? Math.round(t.bpm) : (t.bpm === 0 ? '?' : '—')}</td>
+          <td style="text-align:right;font-family:var(--mono)">${mmss(t.duration_s)}</td>
+          <td style="text-align:right;padding:.2rem .85rem .2rem .5rem">
+            <button class="mini danger del" data-id="${t.id}"
+                    data-name="${esc(t.title || t.relpath)}">remove</button></td>
+        </tr>`).join('') + '</tbody>'
+    : '<tbody><tr><td style="padding:1.5rem;color:var(--text-dim)">' +
+      'No music yet. Drop files onto <strong>add music</strong> above, or copy them into ' +
+      'the volume under <code>music/</code> and press <strong>Rescan library</strong>.' +
+      '</td></tr></tbody>';
+}
+
+// ---------------------------------------------------------------------------
+//  Playlists and the rotation
+//
+//  Two independent things, deliberately: `active` is which single list plays
+//  when the station is playing one, and the rotation is an order of lists
+//  played one after another. Switching between them never rewrites the other,
+//  so you can arrange a rotation while a single list is on air and swap over
+//  when it is ready.
+// ---------------------------------------------------------------------------
+let playback = 'single';
+let allPlaylists = [];
+let rotationIds = [];
+let editing = null;      // {id, name, chosen:Set<number>}
+
+const rowStyle = 'padding:.4rem .85rem;display:flex;align-items:center;gap:.5rem;' +
+                 'border-top:1px solid rgba(29,37,66,.55)';
+
+function renderModeButtons() {
+  const on = 'primary';
+  $('mode-single').className = 'mini' + (playback === 'single' ? ' ' + on : '');
+  $('mode-rotation').className = 'mini' + (playback === 'rotation' ? ' ' + on : '');
+  $('rotwrap').style.opacity = playback === 'rotation' ? '1' : '.5';
+  $('plhint').textContent = playback === 'rotation'
+    ? `${rotationIds.length} list(s) in the rotation`
+    : 'playing one list on a loop';
+}
+
+function renderRotation() {
+  const byId = new Map(allPlaylists.map((p) => [p.id, p]));
+  const rows = rotationIds.map((id, i) => {
+    const p = byId.get(id);
+    if (!p) return '';
+    return `<li style="${rowStyle};border-top:1px solid var(--border)">
+      <span style="font-family:var(--mono);color:var(--cyan);width:1.6rem">${i + 1}.</span>
+      <span style="flex:1">${esc(p.name)}
+        <span style="color:var(--text-faint);font-family:var(--mono);font-size:.72rem">
+          ${p.track_count} tracks · ${mmss(p.duration_s)}</span></span>
+      <button class="mini rot-up" data-id="${p.id}" ${i === 0 ? 'disabled' : ''}>↑</button>
+      <button class="mini rot-down" data-id="${p.id}"
+              ${i === rotationIds.length - 1 ? 'disabled' : ''}>↓</button>
+      <button class="mini danger rot-out" data-id="${p.id}">remove</button>
+    </li>`;
+  }).join('');
+  $('rotation').innerHTML = rows ||
+    '<li style="padding:.5rem 0;color:var(--text-dim);font-size:.8rem">' +
+    'Nothing in the rotation yet — add lists from below.</li>';
+}
+
+function renderPlaylists() {
+  $('playlists').innerHTML = allPlaylists.length
+    ? allPlaylists.map((p) => `
+        <li style="${rowStyle}">
+          <span style="flex:1">${esc(p.name)}
+            <span style="color:var(--text-faint);font-family:var(--mono);font-size:.72rem">
+              ${p.track_count} tracks · ${mmss(p.duration_s)}${
+                p.missing_tracks ? ` · ${p.missing_tracks} missing` : ''}</span></span>
+          ${p.is_active
+            ? '<span class="badge" style="position:static;color:var(--teal)">active</span>'
+            : `<button class="mini act" data-id="${p.id}">activate</button>`}
+          ${p.rotation_position === null
+            ? `<button class="mini rot-in" data-id="${p.id}">+ rotation</button>`
+            : '<span style="color:var(--cyan);font-size:.72rem;font-family:var(--mono)">' +
+              'in rotation</span>'}
+          <button class="mini edit" data-id="${p.id}" data-name="${esc(p.name)}">tracks</button>
+          <button class="mini danger delpl" data-id="${p.id}"
+                  data-name="${esc(p.name)}">delete</button>
+          <button class="mini danger delplmus" data-id="${p.id}" data-count="${p.track_count}"
+                  data-name="${esc(p.name)}" title="delete the list and the music only it holds"
+                  >delete + music</button>
+        </li>`).join('')
+    : '<li style="padding:.85rem;color:var(--text-dim)">no playlists</li>';
+}
+
+async function loadPlaylists() {
+  const [lists, rot] = await Promise.all([
+    api('/api/audio/playlists'),
+    api('/api/audio/playlists/rotation'),
+  ]);
+  allPlaylists = lists.playlists;
+  rotationIds = rot.playlist_ids;
+  playback = rot.playback;
+  renderModeButtons();
+  renderRotation();
+  renderPlaylists();
+}
+
+async function saveRotation() {
+  await api('/api/audio/playlists/rotation', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ playlist_ids: rotationIds }),
+  });
+  await loadPlaylists();
+}
+
+async function setPlayback(value) {
+  await api('/api/settings', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 'audio.playlist_playback': value }),
+  });
+  await loadPlaylists();
+}
+
+$('mode-single').addEventListener('click', () => setPlayback('single').catch((e) => alert(e.message)));
+$('mode-rotation').addEventListener('click', () => {
+  if (!rotationIds.length) {
+    alert('Put at least one list in the rotation first.');
+    return;
+  }
+  setPlayback('rotation').catch((e) => alert(e.message));
+});
+
+$('rotation').addEventListener('click', async (e) => {
+  const button = e.target.closest('button');
+  if (!button) return;
+  const id = Number(button.dataset.id);
+  const i = rotationIds.indexOf(id);
+  if (i < 0) return;
+  if (button.classList.contains('rot-up') && i > 0) {
+    [rotationIds[i - 1], rotationIds[i]] = [rotationIds[i], rotationIds[i - 1]];
+  } else if (button.classList.contains('rot-down') && i < rotationIds.length - 1) {
+    [rotationIds[i + 1], rotationIds[i]] = [rotationIds[i], rotationIds[i + 1]];
+  } else if (button.classList.contains('rot-out')) {
+    rotationIds.splice(i, 1);
+  } else {
+    return;
+  }
+  try { await saveRotation(); } catch (err) { alert(err.message); await loadPlaylists(); }
+});
+
+$('newlist').addEventListener('click', async () => {
+  const name = $('newname').value.trim();
+  if (!name) return;
+  try {
+    await api(`/api/audio/playlists?name=${encodeURIComponent(name)}`, { method: 'POST' });
+    $('newname').value = '';
+    await loadPlaylists();
+  } catch (err) { alert(err.message); }
+});
+$('newname').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('newlist').click(); });
+
+// -- choosing the tracks of one list ---------------------------------------
+
+function renderEditor() {
+  if (!editing) return;
+  $('editname').textContent = editing.name;
+  $('editcount').textContent = `${editing.chosen.size} of ${libraryTracks.length} selected`;
+  $('editlist').innerHTML = libraryTracks.map((t) => `
+    <label style="display:flex;gap:.5rem;align-items:center;padding:.2rem 0;cursor:pointer">
+      <input type="checkbox" data-id="${t.id}" ${editing.chosen.has(t.id) ? 'checked' : ''}>
+      <span style="flex:1">${esc(t.title)}
+        <span style="color:var(--text-faint)">${esc(t.artist) || ''}</span></span>
+      <span style="font-family:var(--mono);color:var(--text-faint)">${mmss(t.duration_s)}</span>
+    </label>`).join('') ||
+    '<div style="color:var(--text-dim);padding:.5rem 0">No music in the library yet.</div>';
+}
+
+$('editlist').addEventListener('change', (e) => {
+  if (!editing || !e.target.dataset.id) return;
+  const id = Number(e.target.dataset.id);
+  if (e.target.checked) editing.chosen.add(id); else editing.chosen.delete(id);
+  $('editcount').textContent = `${editing.chosen.size} of ${libraryTracks.length} selected`;
+});
+$('editall').addEventListener('click', () => {
+  if (!editing) return;
+  libraryTracks.forEach((t) => editing.chosen.add(t.id));
+  renderEditor();
+});
+$('editnone').addEventListener('click', () => {
+  if (!editing) return;
+  editing.chosen.clear();
+  renderEditor();
+});
+$('editcancel').addEventListener('click', () => {
+  editing = null;
+  $('editwrap').style.display = 'none';
+});
+$('editsave').addEventListener('click', async () => {
+  if (!editing) return;
+  // Library order, so a list built from checkboxes is at least predictable.
+  const ids = libraryTracks.map((t) => t.id).filter((id) => editing.chosen.has(id));
+  try {
+    await api(`/api/audio/playlists/${editing.id}/tracks`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ids),
+    });
+    editing = null;
+    $('editwrap').style.display = 'none';
+    await loadPlaylists();
+  } catch (err) { alert(err.message); }
+});
+
+async function refresh() {
+  try {
+    const s = await api('/api/audio/status');
+    renderStatus(s);
+    await loadPlaylists();
+    await loadTracks();
+    await loadGeneration();
+    await loadPlaylog();
+  } catch (err) {
+    $('verdict').querySelector('.headline').textContent = err.message;
+  }
+}
+
+const act = (path) => async () => {
+  try { await api(path, { method: 'POST' }); } catch (e) { alert(e.message); }
+  refresh();
+};
+
+$('start').addEventListener('click', act('/api/audio/start'));
+$('stop').addEventListener('click', act('/api/audio/stop'));
+$('restartbtn').addEventListener('click', act('/api/audio/restart'));
+$('skip').addEventListener('click', act('/api/audio/skip'));
+$('scan').addEventListener('click', async () => {
+  try {
+    const r = await api('/api/audio/tracks/scan', { method: 'POST' });
+    const bits = [];
+    if (r.added) bits.push(`${r.added} added`);
+    if (r.restored) bits.push(`${r.restored} restored`);
+    if (r.updated) bits.push(`${r.updated} updated`);
+    if (r.missing) bits.push(`${r.missing} now missing`);
+    alert(bits.length ? bits.join(', ') : 'Nothing changed — the library already matches the folder.');
+  } catch (err) { alert(err.message); }
+  renderedTracks = null;
+  refresh();
+});
+$('analyse').addEventListener('click', async () => {
+  const button = $('analyse');
+  button.disabled = true;
+  button.textContent = 'analysing…';
+  try {
+    const r = await api('/api/audio/tracks/analyse?limit=50', { method: 'POST' });
+    button.textContent = r.remaining
+      ? `${r.analysed} done, ${r.remaining} left`
+      : `${r.analysed} analysed`;
+  } catch (e) {
+    alert(e.message);
+  }
+  setTimeout(() => { button.disabled = false; button.textContent = 'Analyse tempo'; }, 2500);
+  renderedTracks = null;
+  refresh();
+});
+// ---------------------------------------------------------------------------
+//  Uploading
+//
+//  The endpoint has always been here; there was simply no way to reach it from
+//  the dashboard, which the README nonetheless promised. Files go up one at a
+//  time: a single request for twenty files gives no usable progress, and one
+//  bad file would take the whole batch with it.
+// ---------------------------------------------------------------------------
+let limits = { max_bytes: 512 * 1024 * 1024, suffixes: ['.mp3'] };
+let uploading = false;
+
+const mb = (b) => `${(b / 1024 / 1024).toFixed(b >= 10 * 1024 * 1024 ? 0 : 1)} MB`;
+
+fetch('/api/audio/upload/limits').then((r) => r.json()).then((l) => {
+  limits = l;
+  $('uprules').textContent =
+    `${l.suffixes.join('  ')} · up to ${mb(l.max_bytes)} each`;
+}).catch(() => {});
+
+function queueRow(item, index) {
+  const colour = item.state === 'failed' ? 'var(--red)'
+    : item.state === 'done' ? 'var(--green)' : 'var(--cyan)';
+  return `<li style="display:flex;gap:.6rem;align-items:center;padding:.28rem 0;
+             border-top:1px solid var(--border)">
+    <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+          title="${esc(item.name)}">${esc(item.name)}</span>
+    <span style="color:var(--dim);font-size:.74rem">${mb(item.size)}</span>
+    <span style="width:9rem;height:5px;border-radius:3px;background:var(--bg-raised);
+                 overflow:hidden;display:inline-block">
+      <span style="display:block;height:100%;width:${Math.round(item.pct * 100)}%;
+                   background:${colour};transition:width .15s"></span></span>
+    <span style="width:11rem;text-align:right;color:${colour};font-size:.74rem"
+          title="${esc(item.detail || '')}">${esc(item.detail || item.state)}</span>
+  </li>`;
+}
+
+let items = [];
+const drawQueue = () => { $('queue').innerHTML = items.map(queueRow).join(''); };
+
+function sendOne(file, item, playlist) {
+  return new Promise((resolve) => {
+    const form = new FormData();
+    form.append('files', file, file.name);
+    if (playlist) form.append('playlist', playlist);
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/audio/tracks/upload');
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) { item.pct = e.loaded / e.total; drawQueue(); }
+    });
+    xhr.addEventListener('load', () => {
+      let body = {};
+      try { body = JSON.parse(xhr.responseText); } catch (e) { /* keep the status */ }
+      const refused = (body.rejected || [])[0];
+      if (xhr.status >= 200 && xhr.status < 300 && !refused) {
+        item.state = 'done'; item.pct = 1;
+        item.detail = (body.duplicates || []).length ? 'already in the library' : 'uploaded';
+      } else {
+        item.state = 'failed';
+        item.detail = refused ? refused.reason : `HTTP ${xhr.status}`;
+      }
+      drawQueue();
+      resolve();
+    });
+    xhr.addEventListener('error', () => {
+      item.state = 'failed'; item.detail = 'network error'; drawQueue(); resolve();
+    });
+    xhr.send(form);
+  });
+}
+
+async function upload(files, playlist) {
+  if (uploading) return;
+  const chosen = Array.from(files);
+  if (!chosen.length) return;
+  uploading = true;
+  items = chosen.map((f) => ({
+    name: f.name, size: f.size, pct: 0, state: 'waiting', detail: '',
+  }));
+  drawQueue();
+
+  for (let i = 0; i < chosen.length; i += 1) {
+    const file = chosen[i];
+    const item = items[i];
+    const suffix = file.name.includes('.')
+      ? `.${file.name.split('.').pop().toLowerCase()}` : '';
+    // Refuse locally what the server would refuse anyway, before spending the
+    // upload on it.
+    if (!limits.suffixes.includes(suffix)) {
+      item.state = 'failed'; item.detail = 'unsupported file type'; drawQueue(); continue;
+    }
+    if (file.size > limits.max_bytes) {
+      item.state = 'failed'; item.detail = `over ${mb(limits.max_bytes)}`; drawQueue(); continue;
+    }
+    item.state = 'sending'; item.detail = ''; drawQueue();
+    await sendOne(file, item, playlist);
+  }
+
+  uploading = false;
+  const ok = items.filter((i) => i.state === 'done').length;
+  if (ok) {
+    // The upload endpoint rescans and refreshes the automatic playlist itself.
+    renderedTracks = null;
+    refresh();
+    if (playlist) await loadPlaylists();
+  }
+}
+
+$('pick').addEventListener('click', () => $('picker').click());
+$('picker').addEventListener('change', (e) => { upload(e.target.files); e.target.value = ''; });
+
+// -- a folder becomes a playlist -------------------------------------------
+//
+// The browser hands back every file in the tree, cover art and all, with the
+// path it came from in webkitRelativePath. The first segment is the folder the
+// operator actually picked, and that is the playlist name; everything that is
+// not music is dropped here rather than uploaded and rejected on arrival.
+const isMusic = (file) => {
+  const dot = file.name.lastIndexOf('.');
+  return dot > 0 && limits.suffixes.includes(file.name.slice(dot).toLowerCase());
+};
+
+// One path for both ways of importing a folder, so the button and the drop
+// zone cannot drift apart in what they accept or what they say.
+async function importFolder(folder, files) {
+  const music = files.filter(isMusic);
+  const skipped = files.length - music.length;
+  if (!music.length) {
+    alert(`No music in "${folder}".\n\n${files.length} file(s) were all of other kinds.`);
+    return;
+  }
+  const message = `Import ${music.length} track(s) from "${folder}"` +
+    (skipped ? `, ignoring ${skipped} other file(s)` : '') +
+    `?\n\nThey go into a playlist called "${folder}".`;
+  if (!confirm(message)) return;
+  await upload(music, folder);
+}
+
+$('pickdir').addEventListener('click', () => $('dirpicker').click());
+$('dirpicker').addEventListener('change', (e) => {
+  const picked = Array.from(e.target.files);
+  e.target.value = '';
+  if (!picked.length) return;
+  const folder = (picked[0].webkitRelativePath || '').split('/')[0] || 'Imported';
+  importFolder(folder, picked);
+});
+
+// -- dropping a folder ------------------------------------------------------
+//
+// dataTransfer.files is empty for a dropped directory; the tree is only
+// reachable through the entries API. Two things bite here, and both are
+// silent:
+//
+//   * webkitGetAsEntry() has to be called synchronously inside the drop
+//     handler. The DataTransfer is emptied the moment the handler yields, so
+//     one await before this loop and the drop looks like it contained nothing.
+//   * readEntries() returns a batch at a time — 100 in Chrome — and an album
+//     of 120 tracks would silently import as 100. Keep asking until it
+//     answers with nothing.
+function entryFiles(entry) {
+  return new Promise((resolve) => {
+    if (entry.isFile) {
+      entry.file((file) => resolve([file]), () => resolve([]));
+      return;
+    }
+    if (!entry.isDirectory) { resolve([]); return; }
+    const reader = entry.createReader();
+    const found = [];
+    const readMore = () => reader.readEntries(async (batch) => {
+      if (!batch.length) {
+        resolve(found);
+        return;
+      }
+      for (const child of batch) found.push(...await entryFiles(child));
+      readMore();
+    }, () => resolve(found));
+    readMore();
+  });
+}
+
+async function handleDrop(event) {
+  const transfer = event.dataTransfer;
+  if (!transfer) return;
+
+  // Snapshot before yielding to anything.
+  const entries = [];
+  if (transfer.items && transfer.items.length) {
+    for (const item of transfer.items) {
+      const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+      if (entry) entries.push(entry);
+    }
+  }
+  const plainFiles = transfer.files ? Array.from(transfer.files) : [];
+
+  if (!entries.length) {
+    if (plainFiles.length) await upload(plainFiles);
+    return;
+  }
+
+  const folders = entries.filter((entry) => entry.isDirectory);
+  const loose = entries.filter((entry) => entry.isFile);
+
+  for (const folder of folders) {
+    await importFolder(folder.name, await entryFiles(folder));
+  }
+  if (loose.length) {
+    const files = [];
+    for (const entry of loose) files.push(...await entryFiles(entry));
+    if (files.length) await upload(files);
+  }
+}
+
+const drop = $('drop');
+['dragenter', 'dragover'].forEach((name) => drop.addEventListener(name, (e) => {
+  e.preventDefault();
+  drop.style.borderColor = 'var(--cyan)';
+  drop.style.background = 'var(--bg-hover, var(--bg-raised))';
+}));
+['dragleave', 'drop'].forEach((name) => drop.addEventListener(name, (e) => {
+  e.preventDefault();
+  drop.style.borderColor = 'var(--border-bright)';
+  drop.style.background = 'var(--bg-raised)';
+}));
+drop.addEventListener('drop', (e) => { handleDrop(e); });
+
+// Removing a track deletes the audio file as well: the library is a view of
+// the music folder, and a "removed" track that keeps playing would be worse
+// than confusing.
+$('tracks').addEventListener('click', async (e) => {
+  const button = e.target.closest('.del');
+  if (!button) return;
+  const name = button.dataset.name || 'this track';
+  if (!confirm(`Remove ${name}?\n\nThe audio file is deleted from the music folder.`)) return;
+  button.disabled = true;
+  try {
+    await api(`/api/audio/tracks/${button.dataset.id}`, { method: 'DELETE' });
+  } catch (err) {
+    alert(err.message);
+    button.disabled = false;
+    return;
+  }
+  renderedTracks = null;
+  refresh();
+});
+
+// Deleting eighty-nine tracks one button at a time is not a workflow. The
+// count goes to the server with the request: if a scan or an upload landed in
+// between, the numbers disagree and nothing is destroyed.
+$('eraselib').addEventListener('click', async () => {
+  const n = libraryTracks.length;
+  if (!n) {
+    // Being told "already empty" and nothing else is a dead end: the lists
+    // left holding no music are exactly where the operator still is.
+    await prunePlaylists(
+      emptyPlaylists().length
+        ? 'The library is already empty.\n\n'
+        : 'The library is already empty, and no playlist is left over.');
+    return;
+  }
+  const typed = prompt(
+    `Delete ALL ${n} track(s) from the library?\n\n`
+    + 'Every file goes with them. Playlists survive but come out empty.\n'
+    + 'The visuals are not touched.\n\n'
+    + 'Type DELETE to confirm.');
+  if (typed !== 'DELETE') return;
+  try {
+    const r = await api('/api/audio/tracks', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm_count: n }),
+    });
+    await refresh();
+    const empty = allPlaylists.filter((p) => !p.track_count && p.name !== 'All tracks').length;
+    alert(`Deleted ${r.deleted} track(s). The library is empty.`
+          + (empty ? `\n\n${empty} playlist(s) are now empty. `
+                   + 'Use "Remove empty lists" to clear them and the rotation with them.' : ''));
+  } catch (e) { alert(e.message); }
+});
+
+// Emptying the library leaves the lists behind, holding nothing and still
+// sitting in the rotation — the same one-at-a-time tidying the bulk deletes
+// were added to stop.
+const emptyPlaylists = () =>
+  allPlaylists.filter((p) => !p.track_count && p.name !== 'All tracks');
+
+async function prunePlaylists(lead = '') {
+  const empty = emptyPlaylists();
+  if (!empty.length) { alert(lead || 'Every playlist still has music in it.'); return; }
+  if (!confirm(`${lead}Remove ${empty.length} empty playlist(s)?\n\n`
+             + empty.map((p) => `· ${p.name}`).join('\n')
+             + '\n\nThey hold no music, so nothing is lost. They leave the rotation too.')) return;
+  try {
+    const r = await api('/api/audio/playlists/prune-empty', { method: 'POST' });
+    await refresh();
+    alert(`Removed ${r.removed} playlist(s).`);
+  } catch (e) { alert(e.message); }
+}
+
+$('prunepl').addEventListener('click', () => prunePlaylists());
+
+// Composing runs in the background — sixteen seconds a track is far too long
+// to hold a request open — so the page follows the job rows instead.
+let genPoll = null;
+
+let stylesLoaded = false;
+async function loadStyles() {
+  if (stylesLoaded) return;
+  let body;
+  try { body = await api('/api/audio/tracks/generate/styles'); } catch (e) { return; }
+  const select = $('genstyle');
+  (body.styles || []).forEach((s) => {
+    const option = document.createElement('option');
+    option.value = s.name;
+    option.textContent = `${s.name} — ${s.blurb} (${s.bpm[0]}–${s.bpm[1]} BPM)`;
+    select.appendChild(option);
+  });
+  stylesLoaded = true;
+}
+
+async function loadGeneration() {
+  await loadStyles();
+  let body;
+  try { body = await api('/api/audio/tracks/generate/status'); } catch (e) { return; }
+  const jobs = body.jobs || [];
+  const waiting = body.waiting || 0;
+  $('genstate').textContent = body.running
+    ? (waiting ? `composing · ${waiting} waiting` : 'composing…')
+    : (waiting ? `${waiting} waiting` : '');
+  // Queueing more while it works is fine — that is what a queue is for.
+  $('gengo').disabled = false;
+  $('genstop').style.display = (body.running || waiting) ? '' : 'none';
+  $('genjobs').innerHTML = jobs.slice(0, 6).map((j) => {
+    const colour = j.status === 'done' ? 'var(--ok)'
+                 : j.status === 'failed' ? 'var(--fail)' : 'var(--cyan)';
+    return `<li style="padding:.25rem 0;border-top:1px solid rgba(29,37,66,.55)">
+      <span style="font-family:var(--mono);color:${colour}">${esc(j.status)}</span>
+      · ${esc(j.step || '')}
+      <span style="color:var(--text-faint);font-family:var(--mono);font-size:.72rem">
+        seed ${esc(j.seed || '')}</span>
+      ${j.error ? `<div style="color:var(--fail);font-size:.74rem">${esc(j.error)}</div>` : ''}
+    </li>`;
+  }).join('');
+
+  if (body.running || waiting) {
+    if (!genPoll) genPoll = setInterval(loadGeneration, 3000);
+  } else if (genPoll) {
+    clearInterval(genPoll); genPoll = null;
+    // The tracks exist now; the library and the playlists have to say so.
+    // Not refresh(): that calls this function, and a pair of functions that
+    // call each other is a loop waiting for someone to change a condition.
+    await loadPlaylists();
+    await loadTracks();
+  }
+}
+
+$('genstop').addEventListener('click', async () => {
+  if (!confirm('Stop composing?\n\nThe track being built now finishes; the rest are dropped.')) return;
+  try {
+    const r = await api('/api/audio/tracks/generate/queue', { method: 'DELETE' });
+    alert(r.cancelled ? `Dropped ${r.cancelled} waiting track(s).` : 'Nothing was waiting.');
+    await loadGeneration();
+  } catch (e) { alert(e.message); }
+});
+
+$('gengo').addEventListener('click', async () => {
+  try {
+    const body = await api('/api/audio/tracks/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        count: Number($('gencount').value) || 1,
+        minutes: Number($('genminutes').value) || 5,
+        playlist: $('genplaylist').value.trim(),
+        style: $('genstyle').value,
+      }),
+    });
+    $('genstate').textContent = `queued ${body.queued}`;
+    await loadGeneration();
+  } catch (e) { alert(e.message); }
+});
+
+// A claim is read off a screen in local time, so the field is a local one and
+// the server reads a bare timestamp as station time.
+const clock = (iso) => {
+  const d = new Date(iso);
+  return d.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'medium' });
+};
+
+async function loadPlaylog() {
+  let body;
+  try { body = await api('/api/audio/playlog?limit=40'); } catch (e) { return; }
+  const entries = body.entries || [];
+  $('logstate').textContent = entries.length ? `${entries.length} shown` : 'nothing recorded yet';
+  $('logrecent').innerHTML = entries.map((e) => `
+    <li style="padding:.3rem 0;border-top:1px solid rgba(29,37,66,.55);display:flex;gap:.5rem">
+      <span style="font-family:var(--mono);color:var(--text-faint);white-space:nowrap">
+        ${esc(clock(e.started_at))}</span>
+      <span style="flex:1">${esc(e.artist ? e.artist + ' — ' + e.title : (e.title || e.relpath))}
+        ${e.ended_at ? '' : '<span style="color:var(--ok)">· on air</span>'}</span>
+      ${e.track_id
+        ? `<button class="mini danger flagone" data-id="${e.track_id}"
+                   data-name="${esc(e.title || e.relpath)}">flag</button>`
+        : '<span style="color:var(--text-faint);font-size:.72rem">gone</span>'}
+    </li>`).join('')
+    || '<li style="padding:.5rem 0;color:var(--text-dim)">Nothing has played since the log started.</li>';
+}
+
+$('logask').addEventListener('click', async () => {
+  const when = $('logwhen').value;
+  if (!when) { alert('Pick the time the claim names.'); return; }
+  try {
+    const body = await api(`/api/audio/playlog/at?when=${encodeURIComponent(when)}`);
+    const box = $('loganswer');
+    box.style.display = '';
+    if (!body.entry) {
+      box.innerHTML = '<span style="color:var(--warn)">Nothing was on air at that moment '
+        + '— the station was stopped, or the log had not started yet.</span>';
+      return;
+    }
+    const e = body.entry;
+    box.innerHTML = `<div><strong>${esc(e.artist ? e.artist + ' — ' + e.title : e.title)}</strong></div>
+      <div style="font-family:var(--mono);font-size:.76rem;color:var(--text-dim)">
+        ${esc(e.relpath)}</div>
+      <div style="font-family:var(--mono);font-size:.76rem;color:var(--text-faint)">
+        ${esc(clock(e.started_at))} → ${e.ended_at ? esc(clock(e.ended_at)) : 'still playing'}</div>
+      ${e.track_id ? `<button class="mini danger flagone" style="margin-top:.4rem"
+         data-id="${e.track_id}" data-name="${esc(e.title)}">flag this track</button>` : ''}`;
+  } catch (err) { alert(err.message); }
+});
+
+document.addEventListener('click', async (event) => {
+  const button = event.target.closest('.flagone');
+  if (!button) return;
+  const note = prompt(`Flag "${button.dataset.name}"?\n\nA note, if you want one `
+                    + '(the claimant, the date, anything):', 'copyright claim');
+  if (note === null) return;
+  try {
+    await api(`/api/audio/tracks/flagged?track_id=${button.dataset.id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ note }),
+    });
+    await refresh();
+  } catch (e) { alert(e.message); }
+});
+
+$('flagclear').addEventListener('click', async () => {
+  const r = await api('/api/audio/tracks/flagged', { method: 'DELETE' });
+  alert(r.cleared ? `Unflagged ${r.cleared} track(s).` : 'Nothing is flagged.');
+  await refresh();
+});
+
+$('flagremove').addEventListener('click', async () => {
+  const flagged = libraryTracks.filter((t) => t.flagged);
+  if (!flagged.length) { alert('Nothing is flagged.'); return; }
+  if (!confirm(`Delete ${flagged.length} flagged track(s) and their files?\n\n`
+             + flagged.map((t) => `· ${t.title || t.relpath}`).join('\n')
+             + '\n\nThis cannot be undone.')) return;
+  const r = await api('/api/audio/tracks/flagged?remove=true', { method: 'DELETE' });
+  alert(`Deleted ${r.deleted} track(s).`);
+  await refresh();
+});
+
+$('purge').addEventListener('click', async () => {
+  if (!confirm('Forget every track whose file is already gone?')) return;
+  try {
+    const r = await api('/api/audio/tracks/purge-missing', { method: 'POST' });
+    alert(r.purged ? `Removed ${r.purged} entr${r.purged === 1 ? 'y' : 'ies'}.`
+                   : 'Nothing to remove: every track still has its file.');
+  } catch (err) { alert(err.message); }
+  renderedTracks = null;
+  refresh();
+});
+
+$('search').addEventListener('input', () => { renderedTracks = null; loadTracks(); });
+
+$('playlists').addEventListener('click', async (e) => {
+  const button = e.target.closest('button');
+  if (!button) return;
+  const id = Number(button.dataset.id);
+  try {
+    if (button.classList.contains('act')) {
+      await api(`/api/audio/playlists/${id}/activate`, { method: 'POST' });
+      refresh();
+    } else if (button.classList.contains('rot-in')) {
+      rotationIds.push(id);
+      await saveRotation();
+    } else if (button.classList.contains('delplmus')) {
+      const n = Number(button.dataset.count) || 0;
+      if (!confirm(`Delete "${button.dataset.name}" AND its music?\n\n`
+                 + `Up to ${n} track(s) and their files are destroyed. Tracks that another `
+                 + `playlist also holds are kept.\n\nThis cannot be undone.`)) return;
+      const r = await api(`/api/audio/playlists/${id}?with_tracks=true`, { method: 'DELETE' });
+      await refresh();
+      alert(`Deleted ${r.tracks_deleted} track(s).`
+            + (r.tracks_kept ? `\n${r.tracks_kept} kept — another playlist holds them too.` : ''));
+    } else if (button.classList.contains('delpl')) {
+      if (!confirm(`Delete the playlist "${button.dataset.name}"?\n\nThe music is not touched.`)) {
+        return;
+      }
+      await api(`/api/audio/playlists/${id}`, { method: 'DELETE' });
+      await loadPlaylists();
+    } else if (button.classList.contains('edit')) {
+      const detail = await api(`/api/audio/playlists/${id}`);
+      editing = {
+        id,
+        name: button.dataset.name,
+        chosen: new Set(detail.tracks.map((t) => t.id)),
+      };
+      $('editwrap').style.display = '';
+      renderEditor();
+      $('editwrap').scrollIntoView({ block: 'nearest' });
+    }
+  } catch (err) {
+    alert(err.message);
+  }
+});
+
+// The Icecast mount is on the container's loopback; from a browser it is
+// reachable only if the port is published, so build the link from the page.
+fetch('/api/system/capabilities').then(() => {
+  $('listen').href = `${location.protocol}//${location.hostname}:8000/stream`;
+});
+
+refresh();
+setInterval(refresh, 4000);
+</script>
+{% endblock %}

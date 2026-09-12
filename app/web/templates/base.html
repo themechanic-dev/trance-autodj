@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Trance AutoDJ{% endblock %}</title>
+  <link rel="icon" href="/static/img/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="/static/img/icon-32.png" sizes="32x32" type="image/png">
+  <link rel="icon" href="/static/img/icon-16.png" sizes="16x16" type="image/png">
+  <link rel="apple-touch-icon" href="/static/img/icon-180.png">
+  <link rel="manifest" href="/static/site.webmanifest">
+  <meta name="theme-color" content="#05060d">
+  <link rel="stylesheet" href="/static/css/app.css">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <div class="wrap">
+    <header class="masthead">
+      <h1>Trance AutoDJ</h1>
+      <span class="version">v{{ version }}</span>
+      <span class="byline"><span class="byline-mark">HOME LAB</span> by the mechanic</span>
+      <span class="spacer"></span>
+      <nav class="nav">
+        <a href="/" class="{{ 'active' if active_page == 'home' else '' }}">Home</a>
+        <a href="/audio" class="{{ 'active' if active_page == 'audio' else '' }}">Audio</a>
+        <a href="/visuals" class="{{ 'active' if active_page == 'visuals' else '' }}">Visuals</a>
+        <a href="/stream" class="{{ 'active' if active_page == 'stream' else '' }}">Stream</a>
+        <a href="/settings" class="{{ 'active' if active_page == 'settings' else '' }}">Settings</a>
+        <a href="/logs" class="{{ 'active' if active_page == 'logs' else '' }}">Logs</a>
+        <a href="/preflight" class="{{ 'active' if active_page == 'preflight' else '' }}">Check</a>
+      </nav>
+      {% block masthead_extra %}{% endblock %}
+    </header>
+    {% block content %}{% endblock %}
+    <footer class="page">
+      {% block footer %}Self-hosted · CPU and GPU · no telemetry{% endblock %}
+    </footer>
+  </div>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

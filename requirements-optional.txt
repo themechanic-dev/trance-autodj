@@ -1,0 +1,17 @@
+# Not required. Each one makes something faster or adds a feature that
+# degrades cleanly when absent.
+
+# JIT for the procedural generators. Without it they run on vectorised numpy,
+# which is slower but produces identical output.
+numba>=0.61
+
+# BPM and key analysis at upload time (Phase 7 beat-aligned crossfades).
+librosa>=0.10
+
+# GPU image generation (Phase 5). Install the CUDA build from pytorch.org
+# rather than PyPI if you want GPU support:
+#   pip install torch --index-url https://download.pytorch.org/whl/cu124
+# torch>=2.5
+# diffusers>=0.31
+# transformers>=4.45
+# accelerate>=1.0
