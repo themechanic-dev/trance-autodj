@@ -19,6 +19,13 @@
 
 FROM ubuntu:26.04 AS base
 
+# Ties the package on ghcr.io to this repository, so the package page shows
+# the README and the repository lists the package. Without the source label
+# they are two unrelated things that happen to share a name.
+LABEL org.opencontainers.image.source="https://github.com/themechanic-dev/trance-autodj" \
+      org.opencontainers.image.description="Self-hosted 24/7 trance station for YouTube Live: gapless playback, generative visuals, composes its own music." \
+      org.opencontainers.image.licenses="MIT"
+
 ARG DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8 \
     LC_ALL=C.UTF-8 \
