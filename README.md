@@ -321,6 +321,13 @@ the NAS's own chip — ARM or Intel — and has no build step, because there is
 no source tree on a NAS to build from. Then open port 8080 and choose a
 password.
 
+Two things Container Station insists on, neither of which it says out loud:
+the application name must be **lowercase** (`tranceautodj`, not
+`TranceAutoDJ` — the form stays red until it is), and memory or CPU limits
+go in its *Advanced Settings* panel, never in the YAML. Under *Advanced
+Settings → Default Web URL Port*, service `autodj` and port `8080` give you a
+one-click link to the dashboard from the Applications list.
+
 Leave the visual generator off (it is not in that file, and it is off by
 default in the full one). Build blocks on a desktop instead — a ten-minute
 block is an hour or two on a small ARM chip, and sixty of them is most of a
