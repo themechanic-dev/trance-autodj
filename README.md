@@ -713,6 +713,13 @@ arm64, pushes it as `0.1.2` and `latest`, and opens the release with notes
 from the commits. Every push to `main` also runs the suite inside the image
 that ships.
 
+One thing to do once, by hand, on a fork: the workflow pushes with the token
+GitHub gives it, and that token can only write to packages that belong to
+the repository. If the package was first pushed from a laptop it belongs to
+the account instead, and the release fails with `permission_denied:
+write_package`. On the package's settings page, *Manage Actions access → Add
+Repository* with role *Write*, and *Connect repository* on its main page.
+
 Everything runs inside the container too, which is how it was developed:
 
 ```bash
