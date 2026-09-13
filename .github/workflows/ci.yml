@@ -27,8 +27,11 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Lint, format, test
+        # --user root: the image runs as its own unprivileged user, who
+        # cannot install the dev tools into /opt/venv. This container is
+        # thrown away after the run, so root costs nothing here.
         run: |
-          docker run --rm -v "$PWD":/src -w /src trance-autodj:ci sh -c '
+          docker run --rm --user root -v "$PWD":/src -w /src trance-autodj:ci sh -c '
             pip install -q -r requirements-dev.txt &&
             ruff check app tests scripts &&
             black --check app tests scripts &&
