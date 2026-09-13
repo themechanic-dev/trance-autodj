@@ -699,6 +699,20 @@ black --check app tests scripts
 Around five hundred tests, no network and no GPU required. The ones that need ffmpeg are
 marked `slow` and skip themselves when it is missing.
 
+**Cutting a release** is one number and one tag. The version lives in three
+places — the package, the project metadata and the NAS compose file that
+pins it — and a test refuses to pass if they disagree, so:
+
+```bash
+python -m scripts.release 0.1.2      # writes all three, commits, tags v0.1.2
+git push origin main v0.1.2           # the tag is what starts the build
+```
+
+GitHub then checks the tag against the code, builds the image for amd64 and
+arm64, pushes it as `0.1.2` and `latest`, and opens the release with notes
+from the commits. Every push to `main` also runs the suite inside the image
+that ships.
+
 Everything runs inside the container too, which is how it was developed:
 
 ```bash
