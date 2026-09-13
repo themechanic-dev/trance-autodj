@@ -335,9 +335,26 @@ Settings → Default Web URL Port*, service `autodj` and port `8080` give you a
 one-click link to the dashboard from the Applications list.
 
 Leave the visual generator off (it is not in that file, and it is off by
-default in the full one). Build blocks on a desktop instead — a ten-minute
-block is an hour or two on a small ARM chip, and sixty of them is most of a
-week — or take the starter pack below. Copy the finished `.ts` files and
+default in the full one). Build blocks on a desktop instead, or take the
+starter pack below. Measured on a QNAP TS-230 — a quad-core Cortex-A53 at
+1.4 GHz with 2 GB — one ten-minute block is about **three hours**: an hour
+and fifty minutes to render the 25 clips, then roughly an hour to join and
+encode them. The generators are not equal on that chip:
+
+| generator | frames/s rendered | slower than real time |
+|---|---|---|
+| plasma | 6.0 | 5× |
+| waves | 5.3 | 6× |
+| flowfield | 4.5 | 7× |
+| tunnel | 4.1 | 7× |
+| domainwarp | 2.3 | 13× |
+| reaction_diffusion | 1.7 | 17× |
+
+Memory while building stayed around 250 MB, and the work spread over two to
+three of the four cores — building is not what threatens a small NAS, time
+is. Sixty blocks is a week of it. The first attempt there was lost after the
+clips were done, because the join had a fifteen-minute limit chosen on a
+desktop; it now scales with the length of the block. Copy the finished `.ts` files and
 their `.json` sidecars into the volume under `blocks/`; they are adopted the
 next time the **Visuals** page loads.
 

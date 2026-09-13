@@ -504,6 +504,21 @@ def test_the_settings_page_carries_the_makers_mark(client: TestClient):
         assert "HOME LAB" in page and "by the mechanic" in page, path
 
 
+def test_pages_poll_after_they_finish_not_on_a_clock(client: TestClient):
+    """setInterval on a machine where one request outlasts the interval piles
+    requests up — five in one second was observed on an ARM NAS — and every
+    one of them hits the database."""
+    import re
+
+    for path in ("/", "/audio", "/visuals", "/stream"):
+        page = client.get(path).text
+        # Page-level refresh loops go through poll(); the short-lived ones
+        # (the monitor heartbeat, the OAuth device-code wait) may keep a clock.
+        clocked = re.findall(r"setInterval\((refresh|load|monitorState)\b", page)
+        assert clocked == [], f"{path}: {clocked}"
+        assert "function poll(" in page, f"{path} lacks the helper"
+
+
 def test_both_bulk_deletions_have_a_button(client: TestClient):
     page = client.get("/audio").text
     assert 'id="eraselib"' in page

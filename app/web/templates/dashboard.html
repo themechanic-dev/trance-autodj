@@ -153,6 +153,6 @@ $('audiostop').addEventListener('click', post('/api/audio/stop', 'Stop the audio
 $('player').src = `${location.protocol}//${location.hostname}:8000/stream`;
 
 refresh();
-setInterval(refresh, 3000);
+poll(refresh, 3000);
 </script>
 {% endblock %}

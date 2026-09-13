@@ -445,7 +445,7 @@ $('clearkey').addEventListener('click', async () => {
 refresh();
 monitorState();
 loadYoutube();
-setInterval(refresh, 3000);
-setInterval(monitorState, 5000);
+poll(refresh, 3000);
+poll(monitorState, 5000);
 </script>
 {% endblock %}

@@ -164,6 +164,6 @@ $('build').addEventListener('click', async () => {
 $('refresh').addEventListener('click', () => load({ force: true }));
 $('filter').addEventListener('change', () => load({ force: true }));
 load();
-setInterval(load, 5000);
+poll(load, 5000);
 </script>
 {% endblock %}

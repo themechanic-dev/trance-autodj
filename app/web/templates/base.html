@@ -11,6 +11,17 @@
   <link rel="manifest" href="/static/site.webmanifest">
   <meta name="theme-color" content="#05060d">
   <link rel="stylesheet" href="/static/css/app.css">
+  <script>
+    // Poll by scheduling the next call after this one finishes, never on a
+    // fixed clock. setInterval on a machine where one request outlasts the
+    // interval piles requests up — five in one second was observed on an
+    // ARM NAS — and each one hits the database.
+    function poll(fn, ms) {
+      const tick = () => Promise.resolve().then(fn).catch(() => {}).finally(
+        () => setTimeout(tick, ms));
+      tick();
+    }
+  </script>
   {% block head %}{% endblock %}
 </head>
 <body>

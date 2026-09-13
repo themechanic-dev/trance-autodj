@@ -1051,6 +1051,6 @@ fetch('/api/system/capabilities').then(() => {
 });
 
 refresh();
-setInterval(refresh, 4000);
+poll(refresh, 4000);
 </script>
 {% endblock %}

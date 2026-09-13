@@ -104,6 +104,64 @@ def test_reconcile_adopts_files_that_have_no_row(pool_env):
         assert block.status is BlockStatus.READY
 
 
+def test_a_block_still_being_written_is_left_alone(pool_env):
+    """The sidecar is written last, after ffmpeg has finished, so it is the
+    sign that a block is whole. On a slow NAS the join takes an hour, and
+    adopting the .ts as soon as it appeared put a zero-length block on the
+    air and had five polling requests racing to insert the same row."""
+    _, paths, pool = pool_env
+    (paths.blocks / "block_halfway.ts").write_bytes(b"0" * 512)  # no .json yet
+    with session_scope() as session:
+        result = pool.reconcile(session)
+    assert result["added"] == 0
+    with session_scope() as session:
+        assert session.get(Block, "halfway") is None
+
+    # The moment the sidecar lands, it is a block.
+    (paths.blocks / "block_halfway.json").write_text(
+        json.dumps(
+            {"duration_s": 600.0, "source": "procedural", "profile": {"fingerprint": FINGERPRINT}}
+        ),
+        encoding="utf-8",
+    )
+    with session_scope() as session:
+        assert pool.reconcile(session)["added"] == 1
+
+
+def test_two_reconciles_at_once_do_not_fight_over_one_row(pool_env):
+    """The dashboard polls; on a machine where one call outlasts the polling
+    interval, calls overlap. Each used to find the same file with no row and
+    try to insert it, and every one after the first died on the unique key."""
+    import threading
+
+    _, paths, pool = pool_env
+    (paths.blocks / "block_shared.ts").write_bytes(b"0" * 512)
+    (paths.blocks / "block_shared.json").write_text(
+        json.dumps(
+            {"duration_s": 10.0, "source": "procedural", "profile": {"fingerprint": FINGERPRINT}}
+        ),
+        encoding="utf-8",
+    )
+
+    errors = []
+
+    def one():
+        try:
+            with session_scope() as session:
+                pool.reconcile(session)
+        except Exception as exc:
+            errors.append(exc)
+
+    threads = [threading.Thread(target=one) for _ in range(6)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert errors == [], [type(e).__name__ for e in errors]
+    with session_scope() as session:
+        assert session.get(Block, "shared") is not None
+
+
 def test_reconcile_marks_a_vanished_file_missing_but_keeps_the_row(pool_env):
     """An unmounted disk must cost a rescan, not the library."""
     _, paths, pool = pool_env

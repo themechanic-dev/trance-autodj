@@ -32,6 +32,14 @@ from app.services.visual.encoder import EncodeProfile, duration_of, validate_blo
 
 log = get_logger(__name__)
 
+#: Wall-clock seconds the join may take per second of video before it is
+#: called hung. The slowest encode measured — libx264 veryfast, 720p, on a
+#: Cortex-A53 at 1.4 GHz — ran at about three frames a second, ten seconds
+#: of work per second of video; fifteen leaves room for a busy box. A real
+#: hang on a ten-minute block is still caught within three hours, and no
+#: machine loses its clips to a number chosen on a faster one.
+JOIN_SECONDS_PER_VIDEO_SECOND = 15.0
+
 # A transition may not eat more than this share of the shorter neighbouring
 # clip, or short clips would be almost entirely crossfade.
 MAX_TRANSITION_FRACTION = 0.4
@@ -174,11 +182,17 @@ def build_block(
         },
     )
 
+    # The join re-encodes the whole block, and how long that takes is a
+    # property of the machine, not of the block: two minutes on a desktop,
+    # an hour on a small ARM NAS. A fixed timeout threw away an hour and
+    # fifty minutes of rendered clips on a TS-230 because the join needed
+    # longer than fifteen minutes. So the limit scales with the work.
+    timeout_s = max(cfg.tools.timeout_s, expected * JOIN_SECONDS_PER_VIDEO_SECOND)
     try:
         run(
             argv,
             RunOptions(
-                timeout_s=cfg.tools.timeout_s,
+                timeout_s=timeout_s,
                 retries=0,
                 nice=cfg.cpu.generator_nice,
                 ionice_class=cfg.cpu.generator_ionice_class,

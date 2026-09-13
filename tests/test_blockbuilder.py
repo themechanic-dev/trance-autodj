@@ -130,3 +130,20 @@ def test_planning_is_reproducible_for_a_seed():
     first = plan_transitions(clips, cfg, random.Random(42))
     second = plan_transitions(clips, cfg, random.Random(42))
     assert first == second
+
+
+def test_the_join_is_given_time_in_proportion_to_the_block():
+    """A fixed timeout threw away an hour and fifty minutes of rendered clips
+    on an ARM NAS, because joining a ten-minute block there takes longer than
+    fifteen minutes. The limit has to scale with the work, and it must never
+    be *less* than the configured floor either."""
+    from app.services.visual.blockbuilder import JOIN_SECONDS_PER_VIDEO_SECOND
+
+    floor = 900.0
+    ten_minutes = 620.0
+    assert (
+        max(floor, ten_minutes * JOIN_SECONDS_PER_VIDEO_SECOND) > 3600
+    ), "a ten-minute block on a slow NAS needs more than an hour"
+    assert (
+        max(floor, 10.0 * JOIN_SECONDS_PER_VIDEO_SECOND) == floor
+    ), "a short block keeps the configured floor"

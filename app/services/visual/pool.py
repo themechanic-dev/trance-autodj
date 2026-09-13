@@ -18,6 +18,7 @@ from __future__ import annotations
 import contextlib
 import json
 import random
+import threading
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -88,6 +89,7 @@ class BlockPool:
         self.cfg = cfg
         self.paths = paths
         self.profile = profile
+        self._reconcile_lock = threading.Lock()
 
     # -- registration ------------------------------------------------------
 
@@ -140,7 +142,15 @@ class BlockPool:
         Counts what changed so the caller can log one line instead of one per
         block; on a 60-block pool that is the difference between a readable
         log and a wall of text every minute.
+
+        Serialised: the dashboard polls this, and on a machine slow enough
+        for one call to outlast the polling interval, two calls both find the
+        same file with no row and both try to insert it.
         """
+        with self._reconcile_lock:
+            return self._reconcile(session)
+
+    def _reconcile(self, session: Session) -> dict[str, int]:
         found = {"added": 0, "missing": 0, "restored": 0, "stale_profile": 0}
 
         on_disk = {p.stem.removeprefix("block_"): p for p in self.paths.blocks.glob("block_*.ts")}
@@ -149,6 +159,14 @@ class BlockPool:
         for block_id, path in on_disk.items():
             row = rows.get(block_id)
             if row is None:
+                # The sidecar is written last, after ffmpeg has finished, so
+                # it is the sign that a block is whole. Without it the .ts is
+                # either still being joined — an hour, on a slow NAS — or was
+                # copied in without its metadata. Adopting it early put a
+                # zero-length block on the air and, under a page polling
+                # every few seconds, five requests racing to insert one row.
+                if not path.with_suffix(".json").is_file():
+                    continue
                 session.add(self._adopt(path, block_id))
                 found["added"] += 1
                 continue
