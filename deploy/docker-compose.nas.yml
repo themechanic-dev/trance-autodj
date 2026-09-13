@@ -14,7 +14,11 @@
 
 services:
   autodj:
-    image: ghcr.io/themechanic-dev/trance-autodj:latest
+    # A pinned version, not "latest", on purpose: Container Station never
+    # re-pulls a tag it already has, so "latest" quietly keeps running the
+    # release you first installed. Change this number to update — a tag the
+    # NAS has not seen forces the download.
+    image: ghcr.io/themechanic-dev/trance-autodj:0.1.1
     container_name: trance-autodj
     restart: unless-stopped
     ports:

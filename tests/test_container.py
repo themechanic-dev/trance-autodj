@@ -186,6 +186,13 @@ def test_the_nas_compose_needs_nothing_but_itself():
     doc = yaml.safe_load(text)
     service = doc["services"]["autodj"]
     assert service["image"].startswith("ghcr.io/themechanic-dev/trance-autodj")
+    # Pinned, not "latest": Container Station never re-pulls a tag it has,
+    # so "latest" would quietly keep running whatever was installed first.
+    tag = service["image"].rsplit(":", 1)[1]
+    assert tag != "latest" and tag[0].isdigit(), tag
+    from app import __version__
+
+    assert tag == __version__, "the NAS file must ship the version it was released with"
     assert "build" not in service, "a NAS has no source tree to build from"
     assert "generator" not in doc["services"], "block building does not belong on a NAS"
     assert service["restart"] == "unless-stopped"

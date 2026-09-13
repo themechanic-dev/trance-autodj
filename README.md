@@ -291,14 +291,15 @@ rather not pull from a registry — `docker compose up -d --build`. On an ARM
 NAS that takes twenty to forty minutes and needs the internet; the pull
 takes a minute.
 
-**Updating on a NAS.** Container Station has no "update" action, and
-*Start* reuses whatever `latest` it already downloaded. To move to a new
-release: tick the application → *Actions → Remove* (keep the volume when it
-asks — that is your password, your music and your blocks), then under
-*Images* remove `ghcr.io/themechanic-dev/trance-autodj`, then *Create* the
-application again with the same name and the same YAML. It pulls the current
-image and comes up on the same volume. On a plain Docker host it is the
-usual `docker compose pull && docker compose up -d`.
+**Updating on a NAS.** Container Station has no "update" action, and it
+never re-pulls a tag it already has — which is why the NAS file pins a
+version number instead of `latest`. To move to a new release: tick the
+application → *Actions → Remove* (keep the volume when it asks — that is
+your password, your music and your blocks), then *Create* it again with the
+same name and the same YAML with the new version number on the `image:`
+line. A tag the NAS has not seen forces the download, and it comes up on the
+same volume. On a plain Docker host it is the usual
+`docker compose pull && docker compose up -d`.
 
 ### The first hour of pictures
 
